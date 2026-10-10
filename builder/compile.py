@@ -191,6 +191,8 @@ class Compiler:
         order = ", then ".join(q.get("ask", q.get("field", "")) for q in qs)
         lines = [
             "Ask the questions in this order, one at a time: %s." % order,
+            "If the customer gives only part of an answer (for example half a date or two of four digits), ask for the rest and call "
+            "verify_identity only with the complete answer. If they correct themselves, use the corrected answer.",
             "After each verify_identity result: if all_verified is true, say only 'Thank you.' and nothing else.",
             "If verified is true but all_verified is false: say the answer is correct and ask the NEXT question in the order.",
             "If verified is false: say the answer does not match and ask the SAME question again. Never move to the next question after a wrong answer.",
