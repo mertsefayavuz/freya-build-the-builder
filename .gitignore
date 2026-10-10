@@ -9,3 +9,5 @@ out_*.json
 out/
 traces/*
 !traces/.keep
+.freya-agents.json
+results-baseline-A.log

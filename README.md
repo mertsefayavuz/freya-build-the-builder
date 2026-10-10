@@ -1,3 +1,20 @@
+# Our entry: the builder
+
+```bash
+cp env.example env.sh   # fill in FREYA_API_KEY, FREYA_BANK_TEAM_KEY and an LLM key (OPENROUTER_API_KEY or ANTHROPIC_API_KEY)
+source env.sh
+python3 builder/build.py <brief files...> <tool_api.json>
+```
+
+Input: one or more brief documents (any text: md, txt, eml, csv...) and the bank's openapi tool file.
+Output: a published Freya workflow (the phone agent), `submission/<slot>.workflow.json` (export), `submission/<slot>.spec.json`
+and the run trace `traces/<start>-<slot>.jsonl`. How it works: [builder/README.md](builder/README.md).
+Design: [docs/design/2026-10-10-builder-design.md](docs/design/2026-10-10-builder-design.md). Tests: `python -m pytest tests`.
+
+The rest of this file is the organisers' kit README.
+
+---
+
 # Build the Builder
 
 **Kit version 3** (10 October 2026). The file `VERSION` holds the number. When we update the kit, the number goes up and the changes are listed here.

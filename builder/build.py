@@ -106,7 +106,17 @@ def main():
         return
     v = freya.validate_workflow(slot, wf)
     trace.log("dry_run", result=v)
-    ids = freya.save_workflow(slot, wf, state_file=str(ROOT / ".freya-agents.json"))
+    state_file = ROOT / ".freya-agents.json"
+    try:
+        ids = freya.save_workflow(slot, wf, state_file=str(state_file))
+    except RuntimeError as e:
+        # The slot points to a workflow this workspace does not have (another workspace's state file, or it was deleted):
+        # forget it and create a new workflow.
+        trace.log("deploy_retry", reason=str(e)[:200])
+        state = json.loads(state_file.read_text()) if state_file.exists() else {}
+        state.pop(slot, None)
+        state_file.write_text(json.dumps(state, indent=1))
+        ids = freya.save_workflow(slot, wf, state_file=str(state_file))
     trace.log("deployed", workflow_id=ids["workflow_id"], agent_id=ids["agent_id"], version=ids.get("version"))
     if not a.no_smoke:
         s = smoke(ids["workflow_id"], spec)
