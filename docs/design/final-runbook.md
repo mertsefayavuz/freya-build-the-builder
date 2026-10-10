@@ -30,7 +30,10 @@ Each run writes `submission/<slot>/` with the exported workflow, the spec and th
 
 ## Submit
 ```bash
-git add submission/ && git commit -m "Final: workflows and traces" && git push
+git add submission/
+git add -f traces/<the trace file of each chosen run>     # traces/ is ignored by default (many practice runs)
+git commit -m "Final: phone agents and traces" && git push
 ```
-Form: team name, repository, commit, run command `python builder/build.py <brief files> <tool_api.json>`,
-workflow files `submission/<slot>/<slot>.workflow.json`, trace files `submission/<slot>/*.jsonl`.
+Form: team name, repository, commit, run command `python3 builder/build.py {brief_path} {tool_api_path}`,
+workflow files `submission/<slot>.workflow.json`, trace files `traces/<start>-<slot>.jsonl`.
+Keys are never committed: `env.sh` is ignored and traces redact `fak_...` / `sk-...` values.
