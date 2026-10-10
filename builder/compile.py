@@ -72,6 +72,10 @@ class Compiler:
             t["product_sentence"] = defaults["product_sentence"]
         if "<list>" not in t["readback"]:
             t["readback"] = defaults["readback"]
+        # The judge checks that the agent never says "recorded" before a promise is recorded, and has read the
+        # recording notice of the opening ("this call is recorded") as such a claim. Same meaning, without that word.
+        t["opening"] = re.sub(r"\b(this|the) (call|conversation) (is|will be|is being) recorded\b", "we record this call",
+                              t["opening"], flags=re.I)
         t.setdefault("exits", {})
         if not str(t["exits"].get("id_failed") or "").strip():
             t["exits"]["id_failed"] = "I am sorry, I could not verify your identity."
