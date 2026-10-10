@@ -23,13 +23,15 @@ bands: list ordered by days late, each {"name", "min_days", "max_days" (inclusiv
 promise: {"vague_asks": times to ask for an exact day after a vague period before proposing the deadline (default 1)}.
 confirmation: {"retries": times a failed promise call is retried (default 1)}.
 multi: {"clamp_common_date_to_deadline": true if, when a customer names one date for all products and it is after one product's deadline,
-  that product is recorded on its own deadline; else false}.""",
+  that product is recorded on its own deadline; else false,
+  "next_product_starts_at_attempt": true if, with several products, each next product starts directly at its first persuasion offer
+  (the "can you pay today" question is not repeated per product); else false}.""",
         "skeleton": {"bank_name": "", "language": "English", "currency": "", "calendar": {"workdays": [0, 1, 2, 3, 4], "holidays": []},
                      "product_fields": {"id": "", "type": "", "amount": "", "days_late": ""},
                      "products": {"<type>": {"label": "", "floor_field": ""}},
                      "bands": [{"name": "", "min_days": 0, "max_days": 0, "deadline": {"kind": "business_days_after_today", "n": 0},
                                 "attempts": [{"date": "", "amount": ""}]}],
-                     "promise": {"vague_asks": 1}, "confirmation": {"retries": 1}, "multi": {"clamp_common_date_to_deadline": False}},
+                     "promise": {"vague_asks": 1}, "confirmation": {"retries": 1}, "multi": {"clamp_common_date_to_deadline": False, "next_product_starts_at_attempt": True}},
     },
     "people": {
         "tools": ["verify_identity", "schedule_callback"],

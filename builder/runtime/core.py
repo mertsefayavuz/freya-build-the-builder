@@ -302,7 +302,9 @@ def _after_decision(st, spec):
     c = current(st)
     if c is None:
         return ' All products are decided. Say nothing more about offers.'
-    if st.get('today_refused_all') and c['attempts_used'] == 0:
+    multi_start = spec.get('multi', {}).get('next_product_starts_at_attempt', True)
+    if (st.get('today_refused_all') or multi_start) and c['attempts_used'] == 0 and len(st.get('products', [])) > 1:
+        # Do not ask about today again for each product: go straight to its first persuasion offer.
         return ' Next product: ' + _attempt(st, c, spec)
     return ' Now turn to the next product, %s (%s past due). Ask about it.' % (c['label'], say_amount(c['full'], spec))
 

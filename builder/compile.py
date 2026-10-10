@@ -45,7 +45,7 @@ class Compiler:
         self.ep = tools_gen.endpoints(api)
         self.nodes = {}
         self.texts = spec.setdefault("texts", {})
-        self.id_hook = os.environ.get("BUILDER_ID_HOOK", "0") == "1"
+        self.id_hook = os.environ.get("BUILDER_ID_HOOK", "1") == "1"
         self._fallbacks()
 
     def _fallbacks(self):
@@ -283,7 +283,7 @@ class Compiler:
         # identity
         qs = s.get("identity", {}).get("questions", [])
         id_task = ("The person confirmed they are {{title}} {{last_name}}. Verify their identity.\n" + bullet(R.get("identity", [])) +
-                   ("\nCALL verify_identity after every answer, then do exactly what what_to_do_next says. " if self.id_hook else
+                   ("\nCALL verify_identity after every answer, then do exactly what what_to_do_next says.\n" + self.identity_result_rules() + "\n" if self.id_hook else
                     "\nCALL verify_identity after every answer.\n" + self.identity_result_rules() + "\n") +
                    "Never mention the debt, a product, an amount or why you are calling in this step.")
         id_tr = [
