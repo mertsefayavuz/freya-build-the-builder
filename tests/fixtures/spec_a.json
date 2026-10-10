@@ -1,0 +1,49 @@
+{
+ "bank_name": "Freya Bank",
+ "currency": "",
+ "calendar": {"workdays": [0, 1, 2, 3, 4], "holidays": ["2026-10-26", "2026-11-11", "2026-11-26", "2026-12-25", "2027-01-01"]},
+ "product_fields": {"id": "product_id", "type": "type", "amount": "past_due", "days_late": "days_late"},
+ "products": {
+  "credit_card": {"label": "credit card ending <card_last4>", "floor_field": "minimum_payment"},
+  "personal_loan": {"label": "personal loan", "floor_field": "instalment_amount"},
+  "car_loan": {"label": "car loan", "floor_field": "instalment_amount"}
+ },
+ "bands": [
+  {"name": "early", "min_days": 1, "max_days": 7, "deadline": {"kind": "business_days_after_today", "n": 12},
+   "attempts": [{"date": "last_business_day_this_week_else_next", "amount": "current"}]},
+  {"name": "late", "min_days": 8, "max_days": 45, "deadline": {"kind": "business_days_after_today", "n": 7},
+   "attempts": [{"date": "last_business_day_this_week_else_next", "amount": "current"}, {"date": "deadline", "amount": "floor"}]}
+ ],
+ "promise": {"vague_asks": 1},
+ "product_results": ["refused", "hardship", "dispute", "paid"],
+ "confirmation": {"retries": 1},
+ "notes": {"when": "never", "reasons": ["refused", "hardship", "dispute", "paid", "service_error"]},
+ "multi": {"clamp_common_date_to_deadline": false},
+ "callback": {"days": ["today", "next_business_day"], "start": "10:00", "end": "19:00", "after_now": true, "max_invalid": 2},
+ "identity": {
+  "questions": [
+   {"field": "date_of_birth", "ask": "your date of birth", "format": "date"},
+   {"field": "phone_last4", "ask": "the last four digits of the phone number we have on file", "format": "digits"}
+  ],
+  "numeric_date_order": "DMY",
+  "max_wrong": 3,
+  "hints": {"day_month_swapped": "The day and month look swapped. Ask the customer to say the month as a word. This does not count as a wrong answer."}
+ },
+ "texts": {
+  "product_sentence": "Your <label> has <past_due> past due and is <days_late> days late.",
+  "first_ask": "Can you make this payment today?",
+  "first_ask_multi": "Can you pay all of them today?",
+  "rest_overdue": "Say that the rest stays overdue.",
+  "readback": "Let me read that back: <list>. Do you confirm?",
+  "after_promise": "You will receive a text message confirming this promise.",
+  "record_failed": "I am sorry, I could not record the promise for"
+ },
+ "closing": {"map": {
+  "promise": ["promise", ""], "paid": ["paid", ""],
+  "transfer:restructuring": ["transferred", "restructuring"], "transfer:general": ["transferred", "human"], "transfer:support": ["transferred", "support"],
+  "refused": ["no_promise", "refused"], "hardship": ["no_promise", "hardship"], "dispute": ["no_promise", "dispute"], "service_error": ["no_promise", "service_error"],
+  "id_failed": ["not_verified", "failed"], "id_declined": ["not_verified", "declined"],
+  "callback": ["not_reached", "callback"], "no_callback": ["not_reached", "no_callback"], "wrong_number": ["not_reached", "wrong_number"],
+  "deceased": ["not_reached", "deceased"], "unclear": ["not_reached", "unclear"]
+ }}
+}

@@ -1,0 +1,7 @@
+env.sh
+.env
+__pycache__/
+*.pyc
+results/
+.personas.json
+kit.zip
