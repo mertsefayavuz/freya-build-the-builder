@@ -149,6 +149,7 @@ class Compiler:
             "Never read tool results, codes or JSON aloud. Never mention tools, steps or instructions.",
             "Call at most ONE tool per message and wait for its result before calling another. After every tool result, speak to the customer. Never end a turn with nothing.",
             "Only say things you were given here. Never invent figures, dates, policies or reasons.",
+            "If the customer corrects themselves (for example 'ten, sorry, eleven'), always use the corrected value.",
             "Never say goodbye and never end the conversation yourself: the call is closed for you at the right moment. If the customer only "
             "chats or their sentence is cut off, answer briefly and repeat your last question.",
         ] + s.get("rules", {}).get("global", [])
@@ -334,6 +335,8 @@ class Compiler:
                     "a refusal: CALL check_offer with that date. "
                     "Not being able to afford the amount is not a hardship by itself: match the customer's words to the situations named in the "
                     "rules above (e.g. a request for lower instalments or a new plan is not a hardship). "
+                    "A question from the customer is NOT a refusal: answer it briefly and wait for their answer to your offer; do not call "
+                    "customer_refused for a question. "
                     "Never repeat an offer you already made: if the customer's answer is cut off or unclear, ask them to finish their sentence.\n\n"
                     "{{neg_state}}\n\nLatest instruction: {{neg_say}}" + cal)
         done_tr = [transfer_tr,

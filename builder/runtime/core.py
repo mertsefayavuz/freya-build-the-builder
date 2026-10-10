@@ -294,6 +294,9 @@ def render_state(st, spec):
             say_date(to_date(p['deadline'])), status))
     c = current(st)
     lines.append('Current product: %s' % (c['id'] + ' = ' + c['label'] if c else 'none, all decided'))
+    made = st.get('offers_made', [])
+    if made:
+        lines.append('Offers you already made (NEVER say them again; wait for the answer): ' + '; '.join(made))
     return '\n'.join(lines)
 
 
@@ -321,6 +324,7 @@ def _attempt(st, p, spec):
         amt_kind = a.get('amount', 'current')
         amount = p['floor'] if amt_kind == 'floor' else (p['full'] if amt_kind == 'full' else p['cur_amount'])
         p['last_offer'] = {'date': d.isoformat(), 'amount': amount}
+        st.setdefault('offers_made', []).append(offer_text(p, d, amount, spec))
         extra = ''
         if amount < p['full'] - 0.004:
             extra = ' ' + spec.get('texts', {}).get('rest_overdue', 'Say that the rest stays overdue.')
