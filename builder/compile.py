@@ -4,7 +4,7 @@ Graph (see docs/design/2026-10-10-builder-design.md):
 contact -> setup_id -> identity (-> identity_explain) -> load_account -> prep -> negotiate -> readback
         -> record_promise / write_note loops (after_record / after_note decide) -> farewell -> close -> end
 """
-import json, re
+import json, os, re
 from . import codegen, tools_gen
 
 ALWAYS = {"operator": "always"}
@@ -45,6 +45,7 @@ class Compiler:
         self.ep = tools_gen.endpoints(api)
         self.nodes = {}
         self.texts = spec.setdefault("texts", {})
+        self.id_hook = os.environ.get("BUILDER_ID_HOOK", "1") == "1"
         self._fallbacks()
 
     def _fallbacks(self):
@@ -175,8 +176,26 @@ class Compiler:
                 "Then follow what_to_do_next in the result." % ", ".join("%s = %s" % (q["field"], q.get("ask", "")) for q in qs))
         return tools_gen.api_tool(ep, "verify_identity", {cid: "{{customer_id}}"} if cid else {}, model_fields=[ff, af],
                                   descriptions={af: "The customer's answer. " + "; ".join("%s: %s" % (q["field"], {"date": "YYYY-MM-DD", "digits": "digits only"}.get(q.get("format"), "as said")) for q in qs)},
-                                  description=desc,
-                                  post=codegen.post_hook(self.spec, "id_post_hook(vars, result, SPEC)"))
+                                  description=desc if self.id_hook else desc.replace("Then follow what_to_do_next in the result.",
+                                                                                      "Then apply the result rules in your instructions."),
+                                  post=codegen.post_hook(self.spec, "id_post_hook(vars, result, SPEC)") if self.id_hook else None)
+
+    def identity_result_rules(self):
+        """Without the post-hook the model reads the raw verify result; these rules say what each field means."""
+        idc = self.spec.get("identity", {})
+        qs = idc.get("questions", [])
+        order = ", then ".join(q.get("ask", q.get("field", "")) for q in qs)
+        lines = [
+            "Ask the questions in this order, one at a time: %s." % order,
+            "After each verify_identity result: if all_verified is true, say only 'Thank you.' and nothing else.",
+            "If verified is true but all_verified is false: say the answer is correct and ask the NEXT question in the order.",
+            "If verified is false: say the answer does not match and ask the SAME question again. Never move to the next question after a wrong answer.",
+            "If ok is false (the answer could not be read): ask the same question again, clearly. This is not a wrong answer.",
+            "If wrong_answers_left is 0: say nothing more about the questions.",
+        ]
+        for h, what in (idc.get("hints") or {}).items():
+            lines.append("If the result has hint %s: %s" % (h, what))
+        return bullet(lines)
 
     def neg_tools(self):
         pid_desc = {"type": "string", "description": "The product id from the product list, for example p1. Use all for every open product at once."}
@@ -260,7 +279,8 @@ class Compiler:
         # identity
         qs = s.get("identity", {}).get("questions", [])
         id_task = ("The person confirmed they are {{title}} {{last_name}}. Verify their identity.\n" + bullet(R.get("identity", [])) +
-                   "\nCALL verify_identity after every answer, then do exactly what what_to_do_next says. "
+                   ("\nCALL verify_identity after every answer, then do exactly what what_to_do_next says. " if self.id_hook else
+                    "\nCALL verify_identity after every answer.\n" + self.identity_result_rules() + "\n") +
                    "Never mention the debt, a product, an amount or why you are calling in this step.")
         id_tr = [
             tr("load_account", {"logic": "or", "conditions": [c_eq("id_state", "verified"),
