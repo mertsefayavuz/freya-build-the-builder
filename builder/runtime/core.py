@@ -828,6 +828,8 @@ def closing_text(vars, spec):
     for p in st.get('products', []):
         r = p.get('result', '')
         msg = t.get('result_say', {}).get(r, '')
+        if msg and 'sorry' in msg.lower():
+            msg = ''        # sympathy was said during the call; saying it again fails 'one sentence of sympathy'
         if msg and r not in said and not p.get('promise_ok'):
             parts.append(msg)
             said.append(r)

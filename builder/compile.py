@@ -149,6 +149,8 @@ class Compiler:
             "Never read tool results, codes or JSON aloud. Never mention tools, steps or instructions.",
             "Call at most ONE tool per message and wait for its result before calling another. After every tool result, speak to the customer. Never end a turn with nothing.",
             "Only say things you were given here. Never invent figures, dates, policies or reasons.",
+            "Never say goodbye and never end the conversation yourself: the call is closed for you at the right moment. If the customer only "
+            "chats or their sentence is cut off, answer briefly and repeat your last question.",
         ] + s.get("rules", {}).get("global", [])
         return bullet(lines)
 
@@ -263,7 +265,8 @@ class Compiler:
         # third party
         self.conv("third_party",
             "The person on the line is not {{title}} {{last_name}}.\n" + bullet(R.get("third_party", [])) +
-            "\nWhen they say a day and time, work out the exact date from the calendar and CALL check_callback with it. "
+            "\nWhen they have said BOTH a day and a time, work out the exact date from the calendar and CALL check_callback with it. "
+            "Never guess a missing day or time: ask for it. "
             "Latest check result: {{cb_say}}" + cal,
             {"type": "llm", "prompt": "Ask politely when {{title}} {{last_name}} can be reached. Say nothing about why you are calling."},
             tools=[tools_gen.code_tool("check_callback", "CALL it every time the person names a day and/or time when the customer can be reached.",
@@ -300,7 +303,8 @@ class Compiler:
             {"type": "tts", "text": t.get("identity_intro", "Thank you. What is " + (qs[0]["ask"] if qs else "your date of birth") + "?")},
             tools=[self.verify_tool(), self.transfer_tool()],
             extraction=[self.extract("id_refusal_1", ["yes", "no"],
-                "yes only if in their LAST message the person refuses to answer the security question or asks what the call is about instead of answering. Otherwise no.")],
+                "yes ONLY if in their LAST message the person clearly refuses to answer (e.g. 'I won't give you that'), or asks what the call is "
+                "about and gives NO answer. A question together with an answer, small talk, an unfinished sentence or a wrong answer is no. Otherwise no.")],
             transitions=id_tr + [tr("identity_explain", eq("id_refusal_1", "yes"), "refused once")],
             max_turns=14, fallback="exit_id_failed")
         self.conv("identity_explain",
@@ -308,7 +312,8 @@ class Compiler:
             {"type": "llm", "prompt": "Explain in one sentence that the security questions protect their account, then ask the same question again."},
             tools=[self.verify_tool(), self.transfer_tool()],
             extraction=[self.extract("id_refusal_2", ["yes", "no"],
-                "yes only if in their LAST message the person again refuses to answer or again asks what the call is about. Otherwise no.")],
+                "yes ONLY if in their LAST message the person again clearly refuses to answer, or again asks what the call is about and gives NO answer. "
+                "A question together with an answer, small talk, an unfinished sentence or a wrong answer is no. Otherwise no.")],
             transitions=id_tr + [tr("exit_id_declined", eq("id_refusal_2", "yes"), "refused twice")],
             max_turns=12, fallback="exit_id_failed")
 
@@ -319,13 +324,16 @@ class Compiler:
         neg_task = ("The customer is verified. You are collecting a late payment.\n" + bullet(R.get("negotiate", [])) +
                     "\nHow to work: the tools below apply the bank's rules about dates, amounts and offers. Never decide a date or amount rule yourself. "
                     "When the customer proposes or accepts a day and/or amount, CALL check_offer. When they refuse or do not answer, CALL customer_refused. "
-                    "When they give only a vague period, CALL vague_date. Then say what the latest instruction says. "
+                    "When they give only a vague period, CALL vague_date. Call the tool FIRST, before you say anything about dates or "
+                    "amounts; then say what the latest instruction says (you can also answer a question the customer asked). "
                     "With several products, handle ONE product per tool call, in the order of the product list; the instruction then tells you the next step. "
                     "Do not read back or confirm a promise yourself: the read-back comes after all products are decided. "
                     "Never say that something is recorded, noted or registered: only the tools do that. When the customer says why they cannot "
                     "or will not pay, CALL set_result (or transfer_to_agent) in that same turn. "
                     "A customer who says when they can pay (for example when their salary arrives) is proposing a date, not a hardship and not "
                     "a refusal: CALL check_offer with that date. "
+                    "Not being able to afford the amount is not a hardship by itself: match the customer's words to the situations named in the "
+                    "rules above (e.g. a request for lower instalments or a new plan is not a hardship). "
                     "Never repeat an offer you already made: if the customer's answer is cut off or unclear, ask them to finish their sentence.\n\n"
                     "{{neg_state}}\n\nLatest instruction: {{neg_say}}" + cal)
         done_tr = [transfer_tr,
@@ -350,10 +358,11 @@ class Compiler:
             "If they want to change a day or amount, acknowledge it. No tool call is allowed in this step.",
             {"type": "tts", "text": "{{readback_text}}"}, first_only=False,
             extraction=[self.extract("confirm", ["yes", "change", "unclear"],
-                "yes if the customer clearly confirms the read-back in their LAST message, change if they want a different day or amount or say no, otherwise unclear.")],
+                "yes if the customer confirms the read-back in their LAST message (even with other chatter around it), change if they want a different "
+                "day or amount or say no, otherwise unclear.")],
             transitions=[tr("record_promise", both(c_eq("confirm", "yes"), c_eq("flow", "record")), "confirmed"),
                          tr("reopen", eq("confirm", "change"), "wants a change")],
-            max_turns=4, fallback="exit_stuck")
+            max_turns=8, fallback="exit_stuck")
         self.code_node("reopen", "reopen(vars, SPEC)\nvars['confirm'] = 'unclear'", [tr("negotiate_again", ALWAYS)])
         self.conv("negotiate_again", neg_task, {"type": "llm", "prompt": "Ask what the customer wants to change."}, first_only=False,
             tools=self.neg_tools(), extraction=neg_extract,
