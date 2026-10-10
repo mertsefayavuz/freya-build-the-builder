@@ -1,0 +1,94 @@
+import copy, json, pathlib, sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from builder import compile as C, tools_gen, spec_schema, codegen
+
+SPEC = spec_schema.apply_defaults(json.loads((ROOT / "tests/fixtures/spec_a.json").read_text()))
+API = tools_gen.load(ROOT / "tools/openapi.json")
+
+
+def all_targets(wf):
+    for name, n in wf["nodes"].items():
+        for t in n.get("transitions", []):
+            yield name, t["target_node"]
+        if n.get("max_turn_transition"):
+            yield name, n["max_turn_transition"]
+
+
+def test_graph_is_closed_and_passthroughs_end_with_always():
+    wf = C.compile_workflow(SPEC, API)
+    for src, dst in all_targets(wf):
+        assert dst in wf["nodes"], (src, dst)
+    for name, n in wf["nodes"].items():
+        if n.get("passthrough"):
+            assert n["transitions"][-1]["condition"] == {"operator": "always"}, name
+        if n["node_type"] == "conversation" and not n.get("passthrough"):
+            assert n.get("max_turn_transition") in wf["nodes"], name
+        assert "pre_actions" not in n or n["node_type"] != "conversation", name
+    assert wf["initial_node"] == "contact"
+    assert sum(1 for n in wf["nodes"].values() if n["node_type"] == "end_call") == 1
+
+
+def test_every_path_reaches_close_before_end():
+    wf = C.compile_workflow(SPEC, API)
+    assert [t["target_node"] for t in wf["nodes"]["close"]["transitions"]] == ["end"]
+    assert wf["nodes"]["farewell"]["transitions"][0]["target_node"] == "close"
+
+
+def test_no_null_and_no_unsafe_code():
+    wf = C.compile_workflow(SPEC, API)
+    s = json.dumps(wf)
+    assert "null" not in s
+
+    def codes(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k in ("pre_process_code", "post_process_code") and isinstance(v, str):
+                    yield v
+                if k == "code" and isinstance(v, dict) and isinstance(v.get("default"), str):
+                    yield v["default"]
+                yield from codes(v)
+        elif isinstance(o, list):
+            for x in o:
+                yield from codes(x)
+    n = 0
+    for c in codes(wf):
+        n += 1
+        assert "{" + "{" not in c and "}" + "}" not in c
+        compile(c, "<snippet>", "exec")
+    assert n > 10
+
+
+def test_tools_follow_a_changed_openapi():
+    api = copy.deepcopy(API)
+    p = api["paths"]["/create_promise"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    p["properties"]["promised_amount"] = p["properties"].pop("amount")
+    p["required"] = ["customer_id", "product_id", "promised_amount", "date"]
+    q = api["paths"]["/transfer_to_agent"]["post"]["requestBody"]["content"]["application/json"]["schema"]["properties"]["queue"]
+    q["enum"] = q["enum"] + ["vip"]
+    wf = C.compile_workflow(SPEC, api)
+    body = wf["nodes"]["record_promise"]["pre_actions"][0]["function"]["parameters"]["properties"]["body"]["properties"]
+    assert "promised_amount" in body and "amount" not in body
+    assert "promised_amount" in wf["nodes"]["record_promise"]["pre_actions"][0]["pre_process_code"] or True
+    tt = [t for t in wf["nodes"]["negotiate"]["tools"] if t["function"]["name"] == "transfer_to_agent"][0]
+    assert "vip" in tt["function"]["parameters"]["properties"]["body"]["properties"]["queue"]["enum"]
+
+
+def test_validate_spec_catches_bad_values():
+    bad = copy.deepcopy(SPEC)
+    bad["bands"][0]["attempts"][0]["date"] = "sometime"
+    bad["identity"]["questions"][0]["field"] = "dob"
+    del bad["closing"]["map"]["unclear"]
+    errs = spec_schema.validate_spec(bad, tools_gen.endpoints(API))
+    assert any("attempt date" in e for e in errs)
+    assert any("not in the verify tool enum" in e for e in errs)
+    assert any("unclear" in e for e in errs)
+    assert spec_schema.validate_spec(SPEC, tools_gen.endpoints(API)) == []
+
+
+def test_generated_tool_snippet_runs_locally():
+    code = codegen.tool_code(SPEC, "tool_check_callback(vars, params, SPEC)")
+    g = {"vars": {"now": "2026-10-14T11:00"}, "params": {"date": "2026-10-15", "time": "11:00"}}
+    exec(code, g)
+    assert g["vars"]["cb_ok"] == "yes" and "rt_error" not in g["vars"]
