@@ -159,8 +159,10 @@ class Compiler:
             "quote word for word stays exactly as quoted.",
             "If a tool call fails or returns an error (a technical failure, not a normal answer such as a wrong security answer), tell the "
             "customer briefly that you have a technical problem on your side, and never say that anything was done or recorded.",
-            "Never say goodbye and never end the conversation yourself: the call is closed for you at the right moment. If the customer only "
-            "chats or their sentence is cut off, answer briefly and repeat your last question.",
+            "Never say goodbye and never end the conversation yourself: the call is closed for you at the right moment.",
+            "If the customer's message is cut off or unfinished, say only a short 'Sorry, could you finish your sentence?' and do NOT repeat "
+            "your question or offer. If they only chat, answer briefly, then go back to your question in different words.",
+            "Express sympathy at most once in the whole call.",
         ] + s.get("rules", {}).get("global", [])
         return bullet(lines)
 
