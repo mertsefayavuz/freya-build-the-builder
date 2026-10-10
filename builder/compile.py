@@ -264,8 +264,11 @@ class Compiler:
                    "\nCALL verify_identity after every answer, then do exactly what what_to_do_next says. "
                    "Never mention the debt, a product, an amount or why you are calling in this step.")
         id_tr = [
-            tr("load_account", eq("id_state", "verified"), "identity verified"),
-            tr("exit_id_failed", eq("id_state", "failed"), "identity check failed"),
+            tr("load_account", {"logic": "or", "conditions": [c_eq("id_state", "verified"),
+                c_eq("verify_identity_response.data.all_verified", "true"), c_eq("verify_identity_response.data.all_verified", "True")]},
+               "identity verified"),
+            tr("exit_id_failed", {"logic": "or", "conditions": [c_eq("id_state", "failed"),
+                c_eq("verify_identity_response.data.wrong_answers_left", "0")]}, "identity check failed"),
             transfer_tr,
         ]
         self.conv("identity", id_task,
@@ -286,22 +289,31 @@ class Compiler:
 
         # account + negotiation
         self.api_node("load_account", "get_account", [tr("prep", ALWAYS)], retries=2,
-                      mapping=[{"path": "data.products", "variable": "products"}],
-                      on_enter={"type": "tts", "text": t.get("after_verification", "Thank you.")})
+                      mapping=[{"path": "data.products", "variable": "products"}])
         self.code_node("prep", "prepare(vars, SPEC)", [tr("negotiate", ALWAYS)])
         neg_task = ("The customer is verified. You are collecting a late payment.\n" + bullet(R.get("negotiate", [])) +
                     "\nHow to work: the tools below apply the bank's rules about dates, amounts and offers. Never decide a date or amount rule yourself. "
                     "When the customer proposes or accepts a day and/or amount, CALL check_offer. When they refuse or do not answer, CALL customer_refused. "
                     "When they give only a vague period, CALL vague_date. Then say what the latest instruction says. "
-                    "Do not read back or confirm a promise yourself: the read-back comes after all products are decided.\n\n"
+                    "Do not read back or confirm a promise yourself: the read-back comes after all products are decided. "
+                    "Never say that something is recorded, noted or registered: only the tools do that. When the customer says why they cannot "
+                    "or will not pay, CALL set_result (or transfer_to_agent) in that same turn.\n\n"
                     "{{neg_state}}\n\nLatest instruction: {{neg_say}}" + cal)
         done_tr = [transfer_tr,
                    tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
                    tr("write_note", both(c_eq("neg_done", "yes"), c_eq("flow", "note")), "none agreed, notes to write"),
                    tr("farewell", both(c_eq("neg_done", "yes"), c_eq("flow", "farewell")), "none agreed, nothing to write")]
+        neg_extract = [
+            self.extract("wrap_signal", ["continue", "goodbye"],
+                "goodbye only if the customer is saying goodbye or clearly ending the conversation in their LAST message, otherwise continue."),
+            self.extract("open_reason", ["none"] + list(s.get("product_results", ["refused", "hardship", "dispute", "paid"])),
+                "Why the customer cannot or will not pay, from everything they said: hardship (illness, death in the family, job loss), "
+                "paid (already paid this amount), dispute (not their debt / never had the product), refused (just will not pay), none if not said."),
+        ]
+        done_tr = done_tr + [tr("exit_open", eq("wrap_signal", "goodbye"), "the customer ended the conversation")]
         self.conv("negotiate", neg_task,
-            {"type": "tts", "text": "{{debt_statement}} {{first_ask}}"},
-            tools=self.neg_tools(),
+            {"type": "tts", "text": t.get("after_verification", "") + " {{debt_statement}} {{first_ask}}"},
+            tools=self.neg_tools(), extraction=neg_extract,
             transitions=done_tr,
             max_turns=40, fallback="exit_stuck")
         self.conv("readback",
@@ -315,7 +327,7 @@ class Compiler:
             max_turns=4, fallback="exit_stuck")
         self.code_node("reopen", "reopen(vars, SPEC)\nvars['confirm'] = 'unclear'", [tr("negotiate_again", ALWAYS)])
         self.conv("negotiate_again", neg_task, {"type": "llm", "prompt": "Ask what the customer wants to change."}, first_only=False,
-            tools=self.neg_tools(),
+            tools=self.neg_tools(), extraction=neg_extract,
             transitions=done_tr,
             max_turns=20, fallback="exit_stuck")
 
@@ -334,7 +346,8 @@ class Compiler:
         for key in ("wrong_number", "deceased", "unclear", "callback", "no_callback", "id_failed", "id_declined"):
             self.code_node("exit_" + key, "set_exit(vars, SPEC, '%s')\nvars['farewell_text'] = exit_text(SPEC, '%s')" % (key, key), [tr("farewell", ALWAYS)])
         self.code_node("exit_transfer", "final_outcome(vars, SPEC)\nvars['farewell_text'] = exit_text(SPEC, 'transfer')", [tr("farewell", ALWAYS)])
-        self.code_node("exit_stuck", "final_outcome(vars, SPEC)\nvars['farewell_text'] = closing_text(vars, SPEC)", [tr("farewell", ALWAYS)])
+        self.code_node("exit_stuck", "force_close(vars, SPEC)", loop)
+        self.code_node("exit_open", "force_close(vars, SPEC)", loop)
 
         # close
         self.say_node("farewell", "{{farewell_text}}", "close")

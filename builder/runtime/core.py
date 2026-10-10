@@ -437,9 +437,14 @@ def tool_customer_refused(vars, params, spec):
     if p is None:
         return _finish(vars, st, spec, 'All products are decided.')
     if reason == 'full_too_much' and not p['floor_offered'] and p['floor'] < p['full'] - 0.004:
+        # The floor is offered once. It goes with the next persuasion date, so it is not offered twice.
         p['floor_offered'] = True
         p['cur_amount'] = p['floor']
-        say = 'Offer the minimum %s for %s, once, and say that the rest stays overdue.' % (say_amount(p['floor'], spec), p['label'])
+        if p['attempts_used'] < p['attempts_max']:
+            return _finish(vars, st, spec, _attempt(st, p, spec))
+        last = p.get('last_offer', {}).get('date') or p['deadline']
+        say = 'Propose exactly this, once: %s. %s' % (offer_text(p, last, p['floor'], spec),
+                                                     spec.get('texts', {}).get('rest_overdue', 'Say that the rest stays overdue.'))
         return _finish(vars, st, spec, say)
     return _finish(vars, st, spec, _attempt(st, p, spec))
 
@@ -595,8 +600,25 @@ def wrap_text(st, spec):
     return ' '.join(parts)
 
 
+def force_close(vars, spec):
+    """The conversation ended while products were still open (the model never called a tool).
+    Close them with the reason the extraction model heard, else refused, then continue as usual."""
+    st = load_state(vars)
+    reason = str(vars.get('open_reason') or '').strip()
+    if reason not in spec.get('product_results', ['refused', 'hardship', 'dispute', 'paid']):
+        reason = 'refused'
+    for p in st.get('products', []):
+        if p['result'] in ('', 'agreed'):
+            p['result'] = reason
+    save_state(vars, st)
+    advance(vars, spec)
+
+
 def final_outcome(vars, spec):
     st = load_state(vars)
+    if not st.get('transfer') and int(num(vars.get('transfer_to_agent_success_count'), 0)) > 0:
+        st['transfer'] = str(vars.get('transfer_queue') or vars.get('transfer_to_agent_args.queue') or '')
+        save_state(vars, st)
     omap = spec.get('closing', {}).get('map', {})
     def pick(key, default):
         v = omap.get(key) or default
