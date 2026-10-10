@@ -21,7 +21,7 @@
  "dev-b": {
   "workflow_id": "f53a811d-5c56-4a2c-8098-3ad8f854233c",
   "agent_id": "9f4c60cb-0c10-410e-bedd-07db9b7a0ac6",
-  "version": 4
+  "version": 5
  },
  "raw-local": {
   "workflow_id": "dfd12c66-7a0f-4af0-8002-e0fe376bb806",
