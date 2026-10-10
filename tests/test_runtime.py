@@ -278,3 +278,47 @@ def test_set_result_refused_with_attempts_left_becomes_an_attempt():
     # p2 got attempt 1 automatically after p1; the refusal becomes attempt 2 (late band: floor on the deadline)
     assert st["products"][1]["result"] == "" and st["products"][1]["attempts_used"] == 2
     assert "Friday 23 October" in v["neg_say"] and "440" in v["neg_say"]
+
+
+# ------------------------------------------------------------ other calendar days (the final runs on several days)
+
+def _start_on(now, days_late, spec=SPEC_A, ptype="personal_loan"):
+    p = {"product_id": "p1", "type": ptype, "past_due": 500.0, "days_late": days_late, "instalment_amount": 100.0, "minimum_payment": 100.0, "card_last4": "1111"}
+    v = {"now": now, "acct_json": json.dumps({"ok": True, "products": [p]})}
+    rt.prepare(v, spec)
+    return v
+
+
+def test_friday_now_attempt_goes_to_next_week_and_deadline_skips_holiday():
+    v = _start_on("2026-10-16T15:00", 20)          # Friday; late band: 7 business days, 26 Oct holiday in between
+    st = rt.load_state(v)
+    assert st["products"][0]["deadline"] == "2026-10-28"
+    rt.tool_customer_refused(v, {"product_id": "p1"}, SPEC_A)
+    assert "Friday 23 October" in v["neg_say"]       # today is the last business day of this week -> next week's
+
+
+def test_weekend_now_and_today_promise():
+    v = _start_on("2026-10-17T11:00", 3)           # Saturday
+    rt.tool_check_offer(v, {"product_id": "p1", "date": "2026-10-17"}, SPEC_A)
+    assert v["neg_done"] == "no" and "Monday 19 October" in v["neg_say"]
+
+
+def test_holiday_season_deadline():
+    v = _start_on("2026-12-22T10:00", 10)          # late band over 24/25 Dec (25 Dec + 1 Jan are holidays in spec A)
+    st = rt.load_state(v)
+    # 23,24,28,29,30,31 Dec, 4 Jan = 7 business days (25 Dec and 1 Jan are holidays)
+    assert st["products"][0]["deadline"] == "2027-01-04"
+
+
+def test_callback_on_friday_evening_goes_to_monday():
+    v = {"now": "2026-10-16T18:30"}
+    rt.tool_check_callback(v, {"date": "2026-10-19", "time": "10:00"}, SPEC_A)
+    assert v["cb_ok"] == "yes"
+    v = {"now": "2026-10-16T18:30"}
+    rt.tool_check_callback(v, {"date": "2026-10-17", "time": "11:00"}, SPEC_A)   # Saturday: not allowed
+    assert v.get("cb_ok") != "yes"
+
+
+def test_calendar_block_on_month_end():
+    blk = rt.calendar_block(rt.parse_now("2026-10-30T09:00"), SPEC_A)
+    assert "2026-11-02 Monday 2 November" in blk and "next week" in blk
