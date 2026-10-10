@@ -91,3 +91,13 @@ def test_generated_tool_snippet_runs_locally():
     g = {"vars": {"now": "2026-10-14T11:00"}, "params": {"date": "2026-10-15", "time": "11:00"}}
     exec(code, g)
     assert g["vars"]["cb_ok"] == "yes" and "rt_error" not in g["vars"]
+
+
+def test_record_loop_is_guarded_against_failed_code_steps():
+    wf = C.compile_workflow(SPEC, API)
+    for node in ("after_record", "after_note", "exit_stuck", "exit_open"):
+        first = wf["nodes"][node]["transitions"][0]
+        assert first["target_node"] == "rescue"
+        names = [c["variable"] for c in first["condition"]["conditions"]]
+        assert node + "_failure_count" in names and "record_promise_success_count" in names
+    assert wf["nodes"]["close_rescue_promise"]["pre_actions"][0]["function"]["parameters"]["properties"]["body"]["properties"]["outcome"]["default"] == "promise"

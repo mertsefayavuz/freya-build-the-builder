@@ -323,7 +323,8 @@ class Compiler:
                     "Never say that something is recorded, noted or registered: only the tools do that. When the customer says why they cannot "
                     "or will not pay, CALL set_result (or transfer_to_agent) in that same turn. "
                     "A customer who says when they can pay (for example when their salary arrives) is proposing a date, not a hardship and not "
-                    "a refusal: CALL check_offer with that date.\n\n"
+                    "a refusal: CALL check_offer with that date. "
+                    "Never repeat an offer you already made: if the customer's answer is cut off or unclear, ask them to finish their sentence.\n\n"
                     "{{neg_state}}\n\nLatest instruction: {{neg_say}}" + cal)
         done_tr = [transfer_tr,
                    tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
@@ -359,14 +360,21 @@ class Compiler:
 
         # recording loops (one code step between engine calls: after_record / after_note decide the next step)
         loop = [tr("record_promise", eq("flow", "record")), tr("write_note", eq("flow", "note")), tr("farewell", ALWAYS)]
+
+        def guarded(node):
+            """If this code step failed (sandbox outage) or the loop ran too often, stop and close: never loop on stale state."""
+            stop = {"logic": "or", "conditions": [c_gt(node + "_failure_count", 0),
+                    c_gt("record_promise_success_count", 3), c_gt("record_promise_failure_count", 3),
+                    c_gt("write_note_success_count", 3), c_gt("write_note_failure_count", 3)]}
+            return [tr("rescue", stop, "code step failed or loop cap reached")] + loop
         cp = "create_promise"
         self.api_node("record_promise", cp, [tr("after_record", ALWAYS)],
             baked={self.field(cp, "product_id"): "{{rec_pid}}", self.field(cp, "amount"): "{{rec_amount}}", self.field(cp, "date"): "{{rec_date}}"})
-        self.code_node("after_record", "after_record(vars, SPEC)", loop)
+        self.code_node("after_record", "after_record(vars, SPEC)", guarded("after_record"))
         an = "add_note"
         self.api_node("write_note", an, [tr("after_note", ALWAYS)],
             baked={self.field(an, "product_id"): "{{note_pid}}", self.field(an, "reason"): "{{note_reason}}"})
-        self.code_node("after_note", "after_note(vars, SPEC)", loop)
+        self.code_node("after_note", "after_note(vars, SPEC)", guarded("after_note"))
 
         # exits with a fixed outcome: no code step at all (a sandbox outage must not stop the close call)
         cc = "close_call"
@@ -388,9 +396,15 @@ class Compiler:
         for q in queues:
             literal_close("close_transfer_" + q, "transfer:" + q)
         self.say_node("exit_transfer", self._exit_text("transfer"), "exit_transfer_code", transitions=q_trs)
-        self.code_node("exit_transfer_code", "final_outcome(vars, SPEC)", [tr("close", ALWAYS)])
-        self.code_node("exit_stuck", "force_close(vars, SPEC)", loop)
-        self.code_node("exit_open", "force_close(vars, SPEC)", loop)
+        self.code_node("exit_transfer_code", "final_outcome(vars, SPEC)", [tr("close_transfer_unknown", gt("exit_transfer_code_failure_count", 0)), tr("close", ALWAYS)])
+        literal_close("close_transfer_unknown", "transfer:" + (queues[0] if queues else "general"))
+        self.code_node("exit_stuck", "force_close(vars, SPEC)", guarded("exit_stuck"))
+        self.code_node("exit_open", "force_close(vars, SPEC)", guarded("exit_open"))
+        # rescue: a code step failed. Close with fixed values, honest about nothing we cannot know.
+        self.say_node("rescue", str(self.texts.get("goodbye", "Goodbye.")), "close_rescue_none",
+                      transitions=[tr("close_rescue_promise", gt("record_promise_success_count", 0), "a promise was recorded")])
+        literal_close("close_rescue_promise", "promise")
+        literal_close("close_rescue_none", "refused")
 
         # close
         self.say_node("farewell", "{{farewell_text}}", "close")
