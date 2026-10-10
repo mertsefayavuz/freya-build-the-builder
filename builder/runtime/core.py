@@ -783,10 +783,14 @@ def id_post_hook(vars, result, spec):
         d['what_to_do_next'] = 'The answer could not be read. Ask the same question again, clearly.'
         return
     if verified:
+        # Questions are asked in order, so the number of correct answers says which one comes next.
+        # (The field name of the call is not reliably available to a post-hook.)
+        n = int(num(vars.get('id_ok_n'), 0)) + 1
+        vars['id_ok_n'] = str(n)
         if field and field not in done:
             done.append(field)
         vars['id_done'] = ','.join(done)
-        nxt = next((x for x in qs if x.get('field') not in done), None)
+        nxt = qs[n] if n < len(qs) else None
         d['what_to_do_next'] = ('Correct. Now ask: ' + nxt.get('ask', nxt.get('field'))) if nxt else 'Correct.'
         return
     d['what_to_do_next'] = 'That answer is wrong. Ask the same question again.'

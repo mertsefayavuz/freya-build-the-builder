@@ -312,8 +312,9 @@ class Compiler:
             {"type": "llm", "prompt": "Explain in one sentence that the security questions protect their account, then ask the same question again."},
             tools=[self.verify_tool(), self.transfer_tool()],
             extraction=[self.extract("id_refusal_2", ["yes", "no"],
-                "yes ONLY if in their LAST message the person again clearly refuses to answer, or again asks what the call is about and gives NO answer. "
-                "A question together with an answer, small talk, an unfinished sentence or a wrong answer is no. Otherwise no.")],
+                "yes ONLY if, since you explained why the questions are needed, the person has not given ANY security answer and in their LAST "
+                "message again clearly refuses or again asks what the call is about without answering. If they answered a security question "
+                "after the explanation, this is no. Small talk, a question together with an answer, or an unfinished sentence is no.")],
             transitions=id_tr + [tr("exit_id_declined", eq("id_refusal_2", "yes"), "refused twice")],
             max_turns=12, fallback="exit_id_failed")
 
