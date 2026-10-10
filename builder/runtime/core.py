@@ -144,7 +144,7 @@ def calendar_block(now, spec, days=40):
 
 # ---------------------------------------------------------------- state
 
-def _json(raw, default):
+def _jload(raw, default):
     if isinstance(raw, (dict, list)):
         return raw
     try:
@@ -157,12 +157,12 @@ def _json(raw, default):
 def load_state(vars):
     # Each product lives in its own variable (st_<id>): the phone model sometimes calls several tools in one turn,
     # and those run on the same snapshot. Separate variables mean a tool for p2 cannot overwrite what a tool for p1 wrote.
-    st = _json(vars.get('st'), {})
+    st = _jload(vars.get('st'), {})
     order = st.get('order')
     if order:
         prods = []
         for pid in order:
-            p = _json(vars.get('st_' + pid), {})
+            p = _jload(vars.get('st_' + pid), {})
             if p:
                 prods.append(p)
         st['products'] = prods

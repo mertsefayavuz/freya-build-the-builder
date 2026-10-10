@@ -34,20 +34,30 @@ def read_inputs(paths):
 
 
 def smoke(workflow_id, spec):
-    """One chat turn: the workflow must start and answer. A bare 500 means it cannot start a call."""
+    """Two chat turns: the workflow must start and answer, and its first code step must run without an error
+    (a broken generated snippet would break every call). A bare 500 means it cannot start a call."""
+    cv = {"customer_id": "c_smoke", "first_name": "Alex", "last_name": "Smith", "title": "Mr", "now": time.strftime("%Y-%m-%dT%H:%M")}
+    call, replies = None, []
     try:
-        r = freya.api("POST", "/api/v2/chat/message", {"workflowId": workflow_id, "message": "Hello?",
-                      "customerVariables": {"customer_id": "c_smoke", "first_name": "Alex", "last_name": "Smith", "title": "Mr",
-                                            "now": time.strftime("%Y-%m-%dT%H:%M")}})
-        reply = r.get("response") or ""
-        if r.get("callId"):
+        for msg in ("Hello?", "Yes, speaking."):
+            body = {"workflowId": workflow_id, "message": msg, "customerVariables": cv}
+            if call:
+                body["callId"] = call
+            r = freya.api("POST", "/api/v2/chat/message", body)
+            call = r.get("callId") or call
+            replies.append((r.get("response") or "")[:200])
+        errors = []
+        if call:
+            for m in freya.get_call(call).get("messages", []):
+                if m.get("role") == "system" and ('"function_call_error"' in m.get("message", "") or "rt_error" in m.get("message", "")):
+                    errors.append(m["message"][:300])
             try:
-                freya.api("POST", "/api/v2/chat/end", {"callId": r["callId"]})
+                freya.api("POST", "/api/v2/chat/end", {"callId": call})
             except Exception:
                 pass
-        return {"ok": bool(reply), "reply": reply[:300]}
+        return {"ok": bool(replies and replies[0]) and not errors, "replies": replies, "code_errors": errors[:3]}
     except Exception as e:
-        return {"ok": False, "error": str(e)[:300]}
+        return {"ok": False, "error": str(e)[:300], "replies": replies}
 
 
 def main():

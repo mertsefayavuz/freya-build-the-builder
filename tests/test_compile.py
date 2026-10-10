@@ -101,3 +101,12 @@ def test_record_loop_is_guarded_against_failed_code_steps():
         names = [c["variable"] for c in first["condition"]["conditions"]]
         assert node + "_failure_count" in names and "record_promise_success_count" in names
     assert wf["nodes"]["close_rescue_promise"]["pre_actions"][0]["function"]["parameters"]["properties"]["body"]["properties"]["outcome"]["default"] == "promise"
+
+
+def test_generated_code_does_not_shadow_sandbox_globals():
+    """The Freya sandbox wraps snippets with its own globals (seen in a spike); redefining them breaks every code step."""
+    import re as _re
+    reserved = {"_json", "_sys", "_result", "_tools", "_traceback", "_ToolSuspend", "params", "aes_gcm_decrypt", "aes_gcm_encrypt"}
+    src = codegen.runtime_source()
+    defined = set(_re.findall(r"^def (\w+)", src, _re.M)) | set(_re.findall(r"^(\w+)\s*=", src, _re.M)) | set(_re.findall(r"^import \w+ as (\w+)", src, _re.M))
+    assert not (defined & reserved), defined & reserved
