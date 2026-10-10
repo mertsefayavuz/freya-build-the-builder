@@ -5,7 +5,7 @@
 3. validate the merged spec; repair only the sections that have errors, with the errors.
 """
 import concurrent.futures as cf
-import json, os
+import json, os, re
 
 from . import llm, spec_schema, spec_sections, trace
 
@@ -80,6 +80,35 @@ def run_section(name, docs, api, rulebook, prev=None, errors=None):
     raise RuntimeError("section %s: no usable JSON" % name)
 
 
+def _clean(o):
+    """Placeholders the model left from the skeleton (like "<sentence>") count as empty."""
+    if isinstance(o, dict):
+        return {k: _clean(v) for k, v in o.items() if not (isinstance(k, str) and k.startswith("<") and k.endswith(">"))}
+    if isinstance(o, list):
+        return [x for x in (_clean(v) for v in o) if x != ""]
+    if isinstance(o, str) and re.fullmatch(r"<[^<>]*(<[^<>]*>[^<>]*)*>", o.strip()):
+        return ""
+    return o
+
+
+def merge_sections(parts):
+    """Section answers -> one spec dict in the compiler's shape."""
+    spec = {}
+    for name in ("money", "people", "closing"):
+        spec.update(_clean(parts.get(name) or {}))
+    texts = dict(_clean((parts.get("texts") or {}).get("texts") or {}))
+    ex = _clean(parts.get("exits") or {})
+    texts["exits"] = ex.get("exits") or {}
+    texts["result_say"] = ex.get("result_say") or {}
+    spec["texts"] = texts
+    rc = _clean((parts.get("rules_call") or {}).get("rules_call") or {})
+    rn = _clean(parts.get("rules_negotiate") or {})
+    spec["rules"] = {"global": rc.get("global") or [], "contact": rc.get("contact") or [], "third_party": rc.get("third_party") or [],
+                     "identity": rc.get("identity") or [], "negotiate": rn.get("rules_negotiate") or []}
+    spec["extra_rules"] = rn.get("extra_rules") or []
+    return spec
+
+
 def build_spec(docs, api, endpoints, use_digest=False, max_repairs=2):
     rulebook = digest(docs, api) if use_digest else ""
     parallel = int(os.environ.get("BUILDER_PARALLEL", "5" if llm.BACKEND != "openai" else "1"))
@@ -91,10 +120,7 @@ def build_spec(docs, api, endpoints, use_digest=False, max_repairs=2):
             parts[futs[f]] = f.result()
 
     def merged():
-        spec = {}
-        for n in names:
-            spec.update(parts[n])
-        return spec
+        return merge_sections(parts)
 
     for rnd in range(max_repairs + 1):
         spec = spec_schema.apply_defaults(merged())

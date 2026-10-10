@@ -159,6 +159,16 @@ def validate_spec(spec, api_endpoints=None):
     for k in ("opening", "product_sentence", "readback", "goodbye"):
         if not t.get(k):
             errs.append("texts.%s is empty" % k)
+    for k in ("identity_intro", "after_verification", "first_ask"):
+        if not str(t.get(k, "")).strip():
+            errs.append("texts.%s is empty" % k)
+    if not str(t.get("exits", {}).get("id_failed", "")).strip():
+        errs.append("texts.exits.id_failed is empty")
+    r = spec.get("rules", {})
+    if len(r.get("negotiate", [])) < 3:
+        errs.append("rules.negotiate has fewer than 3 rules: write every special case of the documents")
+    if len(r.get("contact", [])) < 1 or len(r.get("global", [])) < 1:
+        errs.append("rules_call: global and contact need at least one rule each")
     if "{{last_name}}" not in t.get("opening", ""):
         errs.append("texts.opening must contain {{last_name}}")
     if "<list>" not in t.get("readback", "<list>"):

@@ -44,7 +44,41 @@ class Compiler:
         self.api = api
         self.ep = tools_gen.endpoints(api)
         self.nodes = {}
-        self.texts = spec.get("texts", {})
+        self.texts = spec.setdefault("texts", {})
+        self._fallbacks()
+
+    def _fallbacks(self):
+        """Generic wording for anything the extracted spec left empty (no brief-specific content here)."""
+        t, s = self.texts, self.spec
+        qs = s.get("identity", {}).get("questions", [])
+        first_q = qs[0].get("ask", "your date of birth") if qs else "your date of birth"
+        defaults = {
+            "opening": "Hello, this is the digital assistant of %s. Am I speaking with {{title}} {{last_name}}?" % s.get("bank_name", "the bank"),
+            "identity_intro": "Thank you. Before we continue I need to ask some security questions. What is %s?" % first_q,
+            "after_verification": "Thank you, you are verified.",
+            "product_sentence": "Your <label> has <past_due> past due and is <days_late> days late.",
+            "first_ask": "Can you make this payment today?",
+            "first_ask_multi": "Can you pay all of them today?",
+            "readback": "Let me read that back: <list>. Do you confirm?",
+            "record_failed": "I am sorry, I could not record the promise for",
+            "goodbye": "Thank you for your time. Goodbye.",
+        }
+        for k, v in defaults.items():
+            if not str(t.get(k) or "").strip():
+                t[k] = v
+        t.setdefault("exits", {})
+        if not str(t["exits"].get("id_failed") or "").strip():
+            t["exits"]["id_failed"] = "I am sorry, I could not verify your identity."
+        rules = s.setdefault("rules", {})
+        if not rules.get("negotiate"):
+            rules["negotiate"] = [
+                "Never ask how much the customer can pay. You propose every amount.",
+                "If the customer says they already paid this amount: call set_result with paid.",
+                "If the customer says the debt is not theirs: do not argue, call set_result with dispute.",
+                "If the customer cannot pay because of illness, a death in the family or job loss: say one short sentence of sympathy and call set_result with hardship.",
+                "If the customer asks for a new payment plan or lower instalments: call transfer_to_agent.",
+                "If the customer asks for a human: ask once whether you can help; if they insist, call transfer_to_agent.",
+            ]
 
     # ------------------------------------------------------------ helpers
     def field(self, tool, role):

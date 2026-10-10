@@ -1,7 +1,9 @@
 """The spec split into sections, one small focused LLM call each. Together they cover every key of the spec."""
 
 COMMON = ("Every value must come from the bank's documents; if they say nothing, use the default named here. "
-          "Return ONLY a JSON object with exactly the top-level keys of the skeleton, filled in.")
+          "Return ONLY a JSON object with exactly the top-level keys of the skeleton, filled in. "
+          "Values in angle brackets in the skeleton like <sentence> are placeholders you must replace with real content. "
+          "Do not leave a value empty unless the documents clearly require nothing there.")
 
 SECTIONS = {
     "money": {
@@ -65,45 +67,63 @@ notes: {"when": "never" | "always" | "multi_product_only" (when a note tool call
     "texts": {
         "tools": [],
         "doc": r"""
-texts: what the agent says. Use the documents' exact wording where they give one. {{title}} {{first_name}} {{last_name}} are call variables
-(keep the double braces); <label>, <past_due>, <days_late>, <list> are filled by code.
+texts: what the agent says. Use the documents' exact wording where they give one (quote it word for word). {{title}} {{first_name}} {{last_name}}
+are call variables (keep the double braces); <label>, <past_due>, <days_late>, <list> are filled by code.
   opening: the first sentence as required (who is calling, recording notice...), ending with the confirm question with {{title}} {{last_name}}.
            It must not mention the reason for the call if the documents forbid that before verification.
   identity_intro: short thanks + the first security question.
-  after_verification: said right after identity is verified, before the products (team calling and why).
+  after_verification: said right after identity is verified, before the products (which team is calling and why).
   product_sentence: one sentence per late product using <label>, <past_due>, <days_late>.
   first_ask: the first question for one product. first_ask_multi: the first question when there are several products.
-  rest_overdue: instruction to add when a reduced amount is offered, e.g. "Say that the rest stays overdue." ("" if none).
+  rest_overdue: instruction added when a reduced amount is offered, e.g. "Say that the rest stays overdue." ("" if none).
   readback: read-back sentence containing <list> and the confirmation question the documents require.
-  after_promise: exact sentence required after a recorded promise ("" if none).
+  after_promise: exact sentence the documents require after a recorded promise ("" only if there is none).
   record_failed: start of the sentence when a promise could not be recorded.
-  goodbye: thanks and goodbye.
-  exits: sentence said before the goodbye for each exit: id_failed, id_declined, deceased, wrong_number, unclear, callback, no_callback,
-         transfer, not_talking.
-  result_say: sentence said at the end when a product ends that way: paid, dispute, hardship, refused ("" if nothing).""",
-        "skeleton": {"texts": {"opening": "", "identity_intro": "", "after_verification": "", "product_sentence": "", "first_ask": "",
-                     "first_ask_multi": "", "rest_overdue": "", "readback": "", "after_promise": "", "record_failed": "", "goodbye": "",
-                     "exits": {"id_failed": "", "id_declined": "", "deceased": "", "wrong_number": "", "unclear": "", "callback": "",
-                               "no_callback": "", "transfer": "", "not_talking": ""},
-                     "result_say": {"paid": "", "dispute": "", "hardship": "", "refused": ""}}},
+  goodbye: thanks and goodbye.""",
+        "skeleton": {"texts": {"opening": "<sentence>", "identity_intro": "<sentence>", "after_verification": "<sentence>",
+                     "product_sentence": "<sentence with <label> <past_due> <days_late>>", "first_ask": "<question>",
+                     "first_ask_multi": "<question>", "rest_overdue": "<instruction>", "readback": "<sentence with <list>>",
+                     "after_promise": "<exact sentence>", "record_failed": "<sentence start>", "goodbye": "<sentence>"}},
     },
-    "rules": {
+    "exits": {
         "tools": [],
         "doc": r"""
-rules: plain-English instructions for the phone agent, grouped by step, as short imperative sentences. Include EVERY behavioural rule of the
-documents (exact required wording in quotes). Dates, deadlines, amounts, floors and the number of persuasion attempts are enforced by code:
-do not restate their numbers, but do state behaviour (e.g. "Never ask how much the customer can pay").
-  global: whole call (robot/AI question, scam question, questions you cannot answer, never offer discounts or plans...).
-  contact: before identity is verified (what may not be said, what counts as confirmation).
-  third_party: when someone else answers.
-  identity: how to ask and send the security answers; declining.
-  negotiate: after verification. Tools there: check_offer (customer proposes/accepts a day and/or amount), customer_refused
-    (flat refusal or non-answer; reason full_too_much), vague_date, set_result (product ends without promise: refused, hardship, dispute, paid;
-    product_id "all" for every product), transfer_to_agent (queue). Write each special case as
-    "If <situation>: <what to say>, then call <tool> with <value>." (already paid, dispute, hardship, payment plan request, human request,
-    not wanting to talk, asking to change a recorded promise...).
-extra_rules: anything else required that fits nowhere above.""",
-        "skeleton": {"rules": {"global": [], "contact": [], "third_party": [], "identity": [], "negotiate": []}, "extra_rules": []},
+exits: sentence the agent says before the goodbye when the call ends this way. Use the documents' exact wording where they give one.
+  id_failed (identity check failed: e.g. where to go instead), id_declined (refused the security questions), deceased (condolence sentence),
+  wrong_number, unclear (could not confirm who answered), callback (callback booked), no_callback (no valid callback time),
+  transfer (being transferred to a person), not_talking.
+result_say: sentence said at the end when a product ends that way without a promise: paid (e.g. how long a payment takes to appear),
+  dispute, hardship, refused ("" if nothing is required).""",
+        "skeleton": {"exits": {"id_failed": "<sentence>", "id_declined": "<sentence>", "deceased": "<sentence>", "wrong_number": "<sentence>",
+                     "unclear": "<sentence>", "callback": "<sentence>", "no_callback": "<sentence>", "transfer": "<sentence>",
+                     "not_talking": "<sentence>"},
+                     "result_say": {"paid": "<sentence>", "dispute": "<sentence>", "hardship": "<sentence>", "refused": "<sentence>"}},
+    },
+    "rules_call": {
+        "tools": [],
+        "doc": r"""
+rules_call: plain-English instructions for the phone agent before the debt is discussed, as short imperative sentences, each list with
+every relevant rule of the documents (exact required wording in quotes). At least 2 rules per list.
+  global: for the whole call (robot/AI question, scam question, questions you cannot answer, never offer discounts or plans...).
+  contact: before identity is verified (what may never be said, what counts as confirmation, answering questions first).
+  third_party: when someone else answers (what may be said, relatives, offers to pay, asking when the customer can be reached).
+  identity: how to ask and send the security answers, re-asking, declining.""",
+        "skeleton": {"rules_call": {"global": ["<rule>", "<rule>"], "contact": ["<rule>", "<rule>"], "third_party": ["<rule>", "<rule>"],
+                     "identity": ["<rule>", "<rule>"]}},
+    },
+    "rules_negotiate": {
+        "tools": ["transfer_to_agent"],
+        "doc": r"""
+rules_negotiate: plain-English instructions for the phone agent after identity is verified, as short imperative sentences.
+Dates, deadlines, amounts, floors and the number of persuasion attempts are enforced by code: do not restate their numbers, but do
+state behaviour (e.g. "Never ask how much the customer can pay"). Tools available: check_offer (customer proposes/accepts a day and/or
+amount), customer_refused (flat refusal or non-answer; reason full_too_much), vague_date, set_result (product ends without promise:
+refused, hardship, dispute, paid; product_id "all" for every product), transfer_to_agent (queue).
+Write EVERY special case of the documents as "If <situation>: <what to say>, then call <tool> with <value>." — for example already paid,
+dispute / not mine, hardship (illness, death, job loss), payment plan or lower instalments, asking for a human, not wanting to talk,
+asking to change a recorded promise. At least 6 rules.
+extra_rules: anything else the documents require that fits nowhere else (list of sentences, may be empty).""",
+        "skeleton": {"rules_negotiate": ["<rule>", "<rule>", "<rule>", "<rule>", "<rule>", "<rule>"], "extra_rules": []},
     },
 }
 
@@ -112,8 +132,10 @@ SECTION_OF_KEY = {k: name for name, sec in SECTIONS.items() for k in sec["skelet
 
 def section_of_error(err):
     """Which section a validate_spec error belongs to."""
-    for word, name in (("closing", "closing"), ("transfer", "closing"), ("identity", "people"), ("callback", "people"),
-                       ("texts", "texts"), ("band", "money"), ("holiday", "money"), ("product", "money"), ("rules", "rules")):
+    for word, name in (("texts.exits", "exits"), ("texts.result_say", "exits"), ("texts.", "texts"),
+                       ("rules.negotiate", "rules_negotiate"), ("rules", "rules_call"),
+                       ("closing", "closing"), ("transfer", "closing"), ("identity", "people"), ("callback", "people"),
+                       ("band", "money"), ("holiday", "money"), ("product", "money")):
         if word in err:
             return name
     for key, name in SECTION_OF_KEY.items():
