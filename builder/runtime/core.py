@@ -144,19 +144,44 @@ def calendar_block(now, spec, days=40):
 
 # ---------------------------------------------------------------- state
 
-def load_state(vars):
-    raw = vars.get('st')
-    if isinstance(raw, dict):
+def _json(raw, default):
+    if isinstance(raw, (dict, list)):
         return raw
     try:
-        st = json.loads(raw) if raw else {}
-        return st if isinstance(st, dict) else {}
+        v = json.loads(raw) if raw else default
+        return v if isinstance(v, type(default)) else default
     except Exception:
-        return {}
+        return default
+
+
+def load_state(vars):
+    # Each product lives in its own variable (st_<id>): the phone model sometimes calls several tools in one turn,
+    # and those run on the same snapshot. Separate variables mean a tool for p2 cannot overwrite what a tool for p1 wrote.
+    st = _json(vars.get('st'), {})
+    order = st.get('order')
+    if order:
+        prods = []
+        for pid in order:
+            p = _json(vars.get('st_' + pid), {})
+            if p:
+                prods.append(p)
+        st['products'] = prods
+    return st
 
 
 def save_state(vars, st):
-    vars['st'] = json.dumps(st)
+    prods = st.get('products', [])
+    g = dict(st)
+    g.pop('products', None)
+    g['order'] = [p['id'] for p in prods]
+    # Write only what changed: every assigned variable is written back, and an unchanged copy could be stale.
+    for p in prods:
+        val = json.dumps(p)
+        if vars.get('st_' + p['id']) != val:
+            vars['st_' + p['id']] = val
+    val = json.dumps(g)
+    if vars.get('st') != val:
+        vars['st'] = val
 
 
 def today_of(vars):
@@ -294,7 +319,7 @@ def render_state(st, spec):
             say_date(to_date(p['deadline'])), status))
     c = current(st)
     lines.append('Current product: %s' % (c['id'] + ' = ' + c['label'] if c else 'none, all decided'))
-    made = st.get('offers_made', [])
+    made = [o for p in st.get('products', []) for o in p.get('offers', [])]
     if made:
         lines.append('Offers you already made (NEVER say them again; wait for the answer): ' + '; '.join(made))
     return '\n'.join(lines)
@@ -324,7 +349,7 @@ def _attempt(st, p, spec):
         amt_kind = a.get('amount', 'current')
         amount = p['floor'] if amt_kind == 'floor' else (p['full'] if amt_kind == 'full' else p['cur_amount'])
         p['last_offer'] = {'date': d.isoformat(), 'amount': amount}
-        st.setdefault('offers_made', []).append(offer_text(p, d, amount, spec))
+        p.setdefault('offers', []).append(offer_text(p, d, amount, spec))
         extra = ''
         if amount < p['full'] - 0.004:
             extra = ' ' + spec.get('texts', {}).get('rest_overdue', 'Say that the rest stays overdue.')

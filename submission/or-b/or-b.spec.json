@@ -268,6 +268,16 @@
    "A dispute or 'already paid' claim on one product does not end the call; note it and continue with the others.",
    "On any transfer (restructuring, support, human), add no notes before or after the transfer.",
    "If create_promise fails twice for a product, keep the promises that were recorded and call add_note with reason 'service_error' for the failed product.",
+   "Thank the customer and say goodbye before calling close_call.",
+   "Never ask how much the customer can pay; the agent proposes every amount.",
+   "State every late product, one sentence each, before asking for anything.",
+   "Persuasion attempts are counted per product.",
+   "If the customer names one date for all products and it is after one product's deadline, record that product on its own deadline and inform the customer in the read-back.",
+   "Read all promises back together and ask for one confirmation; then call create_promise once per product.",
+   "For each product without a promise, call add_note with that product_id and reason (refused, hardship, dispute, paid, or service_error).",
+   "A dispute or 'already paid' claim on one product does not end the call; note it and continue with the others.",
+   "On any transfer (restructuring, support, human), add no notes before or after the transfer.",
+   "If create_promise fails twice for a product, keep the promises that were recorded and call add_note with reason 'service_error' for the failed product.",
    "Thank the customer and say goodbye before calling close_call."
   ],
   "contact": [

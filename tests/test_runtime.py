@@ -322,3 +322,22 @@ def test_callback_on_friday_evening_goes_to_monday():
 def test_calendar_block_on_month_end():
     blk = rt.calendar_block(rt.parse_now("2026-10-30T09:00"), SPEC_A)
     assert "2026-11-02 Monday 2 November" in blk and "next week" in blk
+
+
+def test_parallel_tool_calls_on_different_products_do_not_clobber():
+    """Two tools run on the same snapshot of vars; the platform merges the variables they write."""
+    v = start("PUB-12", SPEC_B)
+    class Tracking(dict):
+        def __init__(self, d):
+            super().__init__(d); self.assigned = {}
+        def __setitem__(self, k, val):
+            super().__setitem__(k, val); self.assigned[k] = val
+    a, b = Tracking(v), Tracking(v)
+    rt.tool_check_offer(a, {"product_id": "p1", "date": "2026-10-15"}, SPEC_B)
+    rt.tool_customer_refused(b, {"product_id": "p2"}, SPEC_B)
+    merged = dict(v)
+    for snap in (a, b):                      # the platform writes back every key a snippet ASSIGNED, in finish order
+        merged.update(snap.assigned)
+    st = rt.load_state(merged)
+    assert st["products"][0]["result"] == "agreed"
+    assert st["products"][1]["attempts_used"] >= 1
