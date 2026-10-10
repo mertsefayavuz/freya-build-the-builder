@@ -110,13 +110,15 @@ def main():
     freya.export_workflow(ids["workflow_id"], str(out / (slot + ".export.json")))
     trace.log("exported", path=str(out / (slot + ".export.json")))
     trace.end(workflow_id=ids["workflow_id"], agent_id=ids["agent_id"])
-    # everything a submission needs, in one folder: the exported phone agent, the spec it came from and this run's trace
-    sub = ROOT / "submission" / slot
+    # What a submission needs (hackathon page): submission/<brief>.workflow.json (the export) and traces/<run>.jsonl.
+    # The spec the phone agent was compiled from goes next to the export, for reviewers.
+    sub = ROOT / "submission"
     sub.mkdir(parents=True, exist_ok=True)
     import shutil
     shutil.copy(out / (slot + ".export.json"), sub / (slot + ".workflow.json"))
     shutil.copy(out / (slot + ".spec.json"), sub / (slot + ".spec.json"))
-    shutil.copy(trace._path, sub / pathlib.Path(trace._path).name)
+    print("submission files: submission/%s.workflow.json, submission/%s.spec.json, trace: %s" % (
+        slot, slot, pathlib.Path(trace._path).relative_to(ROOT)))
     print(json.dumps(ids))
 
 

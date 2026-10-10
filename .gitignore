@@ -7,4 +7,5 @@ results/
 kit.zip
 out_*.json
 out/
-traces/
+traces/*
+!traces/.keep
