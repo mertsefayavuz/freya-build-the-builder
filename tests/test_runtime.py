@@ -368,3 +368,23 @@ def test_offer_generated_this_turn_cannot_be_refused_unheard():
     v["negotiate.total_turns"] = 2                                               # next customer message: a real refusal
     rt.tool_customer_refused(v, {"product_id": "p2"}, SPEC_B)
     assert rt.load_state(v)["products"][1]["attempts_used"] == 2
+
+
+def test_product_lines_hide_floor_and_deadline_and_survive_parallel_calls():
+    v = start("PUB-12", SPEC_B)
+    assert v["line_1"].startswith("- p1") and v["line_4"] == "" and "minimum" not in v["line_2"] and "latest" not in v["line_2"]
+
+    class Tracking(dict):
+        def __init__(self, d):
+            super().__init__(d); self.assigned = {}
+        def __setitem__(self, k, val):
+            super().__setitem__(k, val); self.assigned[k] = val
+    v["_manual_turns"] = True
+    v["negotiate.total_turns"] = 1
+    a, b = Tracking(v), Tracking(v)
+    rt.tool_check_offer(a, {"product_id": "p1", "date": "2026-10-15"}, SPEC_B)     # p2 gets its first offer
+    rt.tool_customer_refused(b, {"product_id": "p3"}, SPEC_B)                      # parallel: p3 gets its first offer
+    merged = dict(v)
+    for snap in (a, b):
+        merged.update(snap.assigned)
+    assert "Agreed" in merged["line_1"] and "1320" in merged["line_2"] and "140" in merged["line_3"]

@@ -337,7 +337,7 @@ class Compiler:
                     "\nHow to work: the tools below apply the bank's rules about dates, amounts and offers. Never decide a date or amount rule yourself. "
                     "When the customer proposes or accepts a day and/or amount, CALL check_offer. When they refuse or do not answer, CALL customer_refused. "
                     "When they give only a vague period, CALL vague_date. Call the tool FIRST, before you say anything about dates or "
-                    "amounts; then say what the latest instruction says (you can also answer a question the customer asked). "
+                    "amounts; then do what the 'Next for this product' lines and the latest instruction say (you can also answer a question the customer asked). "
                     "With several products, handle ONE product per tool call, in the order of the product list; the instruction then tells you the next step. "
                     "Do not read back or confirm a promise yourself: the read-back comes after all products are decided. "
                     "Never say that something is recorded, noted or registered: only the tools do that. When the customer says why they cannot "
@@ -350,7 +350,8 @@ class Compiler:
                     "A question from the customer is NOT a refusal: answer it briefly and wait for their answer to your offer; do not call "
                     "customer_refused for a question. "
                     "Never repeat an offer you already made: if the customer's answer is cut off or unclear, ask them to finish their sentence.\n\n"
-                    "{{neg_state}}\n\nLatest instruction: {{neg_say}}" + cal)
+                    "Products, in order:\n" + "\n".join("{{line_%d}}" % i for i in range(1, 7)) +
+                    "\n\nLatest instruction: {{neg_say}}" + cal)
         done_tr = [transfer_tr,
                    tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
                    tr("write_note", both(c_eq("neg_done", "yes"), c_eq("flow", "note")), "none agreed, notes to write"),

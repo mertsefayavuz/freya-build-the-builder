@@ -261,7 +261,7 @@ def prepare(vars, spec):
             'attempts_max': len(band.get('attempts', [])), 'attempts_used': 0,
             'cur_amount': full, 'floor_offered': False, 'deadline_offered': False, 'vague_asks': 0,
             'below_floor_count': 0, 'result': '', 'date': '', 'amount': 0.0, 'clamped': False,
-            'record_tries': 0, 'promise_ok': False, 'note_done': False,
+            'record_tries': 0, 'promise_ok': False, 'note_done': False, 'idx': i + 1, 'say': '',
         }
         prods.append(p)
     st['products'] = prods
@@ -274,6 +274,9 @@ def prepare(vars, spec):
     vars['neg_say'] = vars['first_ask']
     vars['neg_done'] = 'no'
     vars['neg_state'] = render_state(st, spec)
+    for i in range(1, MAX_LINES + 1):
+        vars['line_%d' % i] = ''
+    write_lines(vars, st, spec, only_changed=False)
     save_state(vars, st)
     return st
 
@@ -331,6 +334,36 @@ def render_state(st, spec):
     return '\n'.join(lines)
 
 
+MAX_LINES = 6
+
+
+def render_line(p, spec):
+    """One product's line for the prompt. No floor or deadline: the tools apply those, the model must not improvise offers."""
+    head = '- %s = %s (past due %s, %d days late).' % (p['id'], p['label'], say_amount(p['full'], spec), p['days_late'])
+    if p['result'] == 'agreed':
+        return head + ' Agreed: %s on %s. Nothing more to ask for it.' % (say_amount(p['amount'], spec), p['date'])
+    if p['result']:
+        return head + ' Closed (%s). Do not ask about it again.' % p['result']
+    parts = [head, 'Open.']
+    if p.get('offers'):
+        parts.append('Already offered (never repeat): ' + '; '.join(p['offers']) + '.')
+    if p.get('say'):
+        parts.append('Next for this product: ' + p['say'])
+    return ' '.join(parts)
+
+
+def write_lines(vars, st, spec, only_changed=True):
+    """Each product's line is its own variable, written only when that product changed: tools that run in parallel
+    for different products then never overwrite each other's instructions."""
+    for p in st.get('products', []):
+        i = int(p.get('idx') or 0)
+        if not (1 <= i <= MAX_LINES):
+            continue
+        if only_changed and vars.get('st_' + p['id']) == json.dumps(p):
+            continue
+        vars['line_%d' % i] = render_line(p, spec)
+
+
 def _after_decision(st, spec):
     """Text that tells the model what comes next once a product is decided."""
     c = current(st)
@@ -339,7 +372,8 @@ def _after_decision(st, spec):
     multi_start = spec.get('multi', {}).get('next_product_starts_at_attempt', True)
     if (st.get('today_refused_all') or multi_start) and c['attempts_used'] == 0 and len(st.get('products', [])) > 1:
         # Do not ask about today again for each product: go straight to its first persuasion offer.
-        return ' Next product: ' + _attempt(st, c, spec)
+        c['say'] = _attempt(st, c, spec)
+        return ' Next product: ' + c['say']
     return ' Now turn to the next product, %s (%s past due). Ask about it.' % (c['label'], say_amount(c['full'], spec))
 
 
@@ -360,8 +394,10 @@ def _attempt(st, p, spec):
         extra = ''
         if amount < p['full'] - 0.004:
             extra = ' ' + spec.get('texts', {}).get('rest_overdue', 'Say that the rest stays overdue.')
-        return 'Propose exactly this, once: %s.%s Do not repeat an offer the customer already refused.' % (offer_text(p, d, amount, spec), extra)
+        p['say'] = 'Propose exactly this, once: %s.%s' % (offer_text(p, d, amount, spec), extra)
+        return p['say'] + ' Do not repeat an offer the customer already refused.'
     p['result'] = 'refused'
+    p['say'] = ''
     return 'No offers are left for %s. Do not insist; acknowledge politely.' % p['label'] + _after_decision(st, spec)
 
 
@@ -397,6 +433,7 @@ def _check_one(st, p, d, amount, for_all, spec):
             nd = deadline
         return False, '%s is not a business day. Do not accept it. Offer %s instead.' % (say_date(d), say_date(nd))
     p['result'] = 'agreed'
+    p['say'] = ''
     p['date'] = d.isoformat()
     p['amount'] = round(amt, 2)
     p['clamped'] = clamped
@@ -433,6 +470,7 @@ def _parse_date(x):
 
 
 def _finish(vars, st, spec, say):
+    write_lines(vars, st, spec)
     vars['neg_say'] = say
     vars['neg_done'] = 'yes' if current(st) is None else 'no'
     vars['neg_state'] = render_state(st, spec)
@@ -456,6 +494,8 @@ def tool_check_offer(vars, params, spec):
     msgs = []
     for p in targets:
         ok, m = _check_one(st, p, d, amount if len(targets) == 1 else None, pid.lower() == 'all' and len(targets) > 1, spec)
+        if not ok:
+            p['say'] = m
         msgs.append(m)
     say = ' '.join(msgs)
     if all(p['result'] in ('agreed', 'refused') for p in targets) or current(st) is not None:
@@ -480,6 +520,7 @@ def _unheard_offer(st, p):
 
 def _say_unheard(st, p, spec):
     o = p['last_offer']
+    p['say'] = 'Make this offer now, once: %s.' % offer_text(p, o['date'], o['amount'], spec)
     return 'The customer has not heard your offer for %s yet. Make it now, once: %s.' % (p['label'], offer_text(p, o['date'], o['amount'], spec))
 
 
