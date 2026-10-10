@@ -10,6 +10,20 @@ SPEC_B = json.loads((ROOT / "tests/fixtures/spec_b.json").read_text())
 CASES = {c["id"]: c for c in json.loads((ROOT / "public-test-set.json").read_text())}
 
 
+# In a real call every tool call follows a new customer message. Unit tests call tools back to back, so each call
+# advances the platform's turn counter (unless the test drives the turns itself with _manual_turns).
+def _turned(fn):
+    def w(v, params, spec):
+        if not v.get("_manual_turns"):
+            v["negotiate.total_turns"] = int(v.get("negotiate.total_turns", 0)) + 1
+        return fn(v, params, spec)
+    return w
+
+
+for _name in ("tool_check_offer", "tool_customer_refused", "tool_vague_date", "tool_set_result"):
+    setattr(rt, _name, _turned(getattr(rt, _name)))
+
+
 def start(case_id, spec):
     c = CASES[case_id]
     prods = [dict(p, product_id="p%d" % (i + 1)) for i, p in enumerate(c["products"])]
@@ -341,3 +355,16 @@ def test_parallel_tool_calls_on_different_products_do_not_clobber():
     st = rt.load_state(merged)
     assert st["products"][0]["result"] == "agreed"
     assert st["products"][1]["attempts_used"] >= 1
+
+
+def test_offer_generated_this_turn_cannot_be_refused_unheard():
+    v = start("PUB-12", SPEC_B)
+    v["_manual_turns"] = True
+    v["negotiate.total_turns"] = 1
+    rt.tool_check_offer(v, {"product_id": "p1", "date": "2026-10-15"}, SPEC_B)   # p2 gets attempt 1 automatically
+    rt.tool_customer_refused(v, {"product_id": "p2"}, SPEC_B)                    # same customer turn: not heard yet
+    st = rt.load_state(v)
+    assert st["products"][1]["attempts_used"] == 1 and "not heard" in v["neg_say"] and "1320" in v["neg_say"]
+    v["negotiate.total_turns"] = 2                                               # next customer message: a real refusal
+    rt.tool_customer_refused(v, {"product_id": "p2"}, SPEC_B)
+    assert rt.load_state(v)["products"][1]["attempts_used"] == 2

@@ -155,6 +155,12 @@ def _jload(raw, default):
 
 
 def load_state(vars):
+    st = _load_state(vars)
+    st['turn'] = user_turn(vars)
+    return st
+
+
+def _load_state(vars):
     # Each product lives in its own variable (st_<id>): the phone model sometimes calls several tools in one turn,
     # and those run on the same snapshot. Separate variables mean a tool for p2 cannot overwrite what a tool for p1 wrote.
     st = _jload(vars.get('st'), {})
@@ -341,6 +347,7 @@ def _attempt(st, p, spec):
     band = band_for(p['days_late'], spec)
     atts = band.get('attempts', [])
     p['attempts_used'] += 1
+    p['offer_turn'] = st.get('turn')
     i = p['attempts_used']
     if i <= len(atts):
         a = atts[i - 1]
@@ -456,6 +463,26 @@ def tool_check_offer(vars, params, spec):
     return _finish(vars, st, spec, say)
 
 
+def user_turn(vars):
+    # Platform counters <node>.total_turns count user turns per node; their sum grows by one per customer message.
+    n = 0
+    for k, v in vars.items():
+        if str(k).endswith('.total_turns'):
+            n += int(num(v, 0))
+    return n
+
+
+def _unheard_offer(st, p):
+    # An offer generated in this same customer turn has not been said yet: a refusal cannot be about it.
+    return (not p['result'] and p['attempts_used'] > 0 and p.get('last_offer')
+            and p.get('offer_turn') is not None and p.get('offer_turn') == st.get('turn'))
+
+
+def _say_unheard(st, p, spec):
+    o = p['last_offer']
+    return 'The customer has not heard your offer for %s yet. Make it now, once: %s.' % (p['label'], offer_text(p, o['date'], o['amount'], spec))
+
+
 def tool_customer_refused(vars, params, spec):
     st = load_state(vars)
     pid = str(params.get('product_id') or '').strip()
@@ -467,6 +494,8 @@ def tool_customer_refused(vars, params, spec):
         p = find(st, pid)
     if p is None:
         return _finish(vars, st, spec, 'All products are decided.')
+    if reason != 'full_too_much' and _unheard_offer(st, p):
+        return _finish(vars, st, spec, _say_unheard(st, p, spec))
     if reason == 'full_too_much' and not p['floor_offered'] and p['floor'] < p['full'] - 0.004:
         # The floor is offered once. It goes with the next persuasion date, so it is not offered twice.
         p['floor_offered'] = True
@@ -503,6 +532,8 @@ def tool_set_result(vars, params, spec):
         return _finish(vars, st, spec, 'Unknown result. Use one of: ' + ', '.join(allowed) + '.')
     if result == 'refused' and pid.lower() != 'all':
         p = find(st, pid)
+        if p is not None and _unheard_offer(st, p):
+            return _finish(vars, st, spec, _say_unheard(st, p, spec))
         if p is not None and not p['result'] and p['attempts_used'] < p['attempts_max']:
             # A refusal with persuasion attempts left is a flat refusal: make the next attempt (the bank's rule, not the model's).
             return _finish(vars, st, spec, 'Do not close this product yet. ' + _attempt(st, p, spec))
