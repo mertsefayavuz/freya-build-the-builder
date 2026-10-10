@@ -1,0 +1,9 @@
+{"t": "2026-10-10T18:02:14+0300", "elapsed_s": 0.0, "event": "start", "slot": "or-a", "at": "2026-10-10T18:02:14+0300"}
+{"t": "2026-10-10T18:02:14+0300", "elapsed_s": 0.0, "event": "inputs", "files": ["briefs/brief-a.md", "tools/openapi.json"], "docs": ["brief-a.md"], "tools": ["add_note", "close_call", "create_promise", "get_account", "schedule_callback", "transfer_to_agent", "verify_identity"]}
+{"t": "2026-10-10T18:02:14+0300", "elapsed_s": 0.0, "event": "spec_loaded", "path": "out/or-a.spec.json"}
+{"t": "2026-10-10T18:02:14+0300", "elapsed_s": 0.0, "event": "spec_ready", "errors": [], "bands": ["early", "late"], "holidays": ["2026-10-26", "2026-11-11", "2026-11-26", "2026-12-25", "2027-01-01"], "questions": ["date_of_birth", "phone_last4"]}
+{"t": "2026-10-10T18:02:14+0300", "elapsed_s": 0.0, "event": "compiled", "nodes": 45, "bytes": 356364}
+{"t": "2026-10-10T18:02:15+0300", "elapsed_s": 0.9, "event": "dry_run", "result": {"valid": true, "dryRun": true}}
+{"t": "2026-10-10T18:02:18+0300", "elapsed_s": 4.3, "event": "deployed", "workflow_id": "1e059871-d85f-466f-b3f5-8ee128e79bcb", "agent_id": "71247390-72db-4683-a29c-a7c1450b64e5", "version": 4}
+{"t": "2026-10-10T18:02:20+0300", "elapsed_s": 6.1, "event": "exported", "path": "C:\\Users\\merts\\Desktop\\MAIN\\job\\freya\\kit\\build-the-builder\\out\\or-a.export.json"}
+{"t": "2026-10-10T18:02:20+0300", "elapsed_s": 6.1, "event": "end", "at": "2026-10-10T18:02:20+0300", "total_s": 6.1, "workflow_id": "1e059871-d85f-466f-b3f5-8ee128e79bcb", "agent_id": "71247390-72db-4683-a29c-a7c1450b64e5"}

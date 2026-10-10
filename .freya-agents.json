@@ -16,12 +16,12 @@
  "or-a": {
   "workflow_id": "1e059871-d85f-466f-b3f5-8ee128e79bcb",
   "agent_id": "71247390-72db-4683-a29c-a7c1450b64e5",
-  "version": 3
+  "version": 4
  },
  "dev-b": {
   "workflow_id": "f53a811d-5c56-4a2c-8098-3ad8f854233c",
   "agent_id": "9f4c60cb-0c10-410e-bedd-07db9b7a0ac6",
-  "version": 5
+  "version": 6
  },
  "raw-local": {
   "workflow_id": "dfd12c66-7a0f-4af0-8002-e0fe376bb806",
@@ -30,5 +30,9 @@
  "dev-b-nohook": {
   "workflow_id": "6b60f6f3-d64c-463a-9ba9-a34dc7c6b4ad",
   "agent_id": "6a865b71-0b5f-475a-ad51-df5df7a735ae"
+ },
+ "or-b": {
+  "workflow_id": "2dfe8546-9a9e-451b-a387-cd28fd0532f5",
+  "agent_id": "f31481fc-538b-4611-adbe-b0b1a2cafb20"
  }
 }
