@@ -49,8 +49,17 @@ def smoke(workflow_id, spec):
         errors = []
         if call:
             for m in freya.get_call(call).get("messages", []):
-                if m.get("role") == "system" and ('"function_call_error"' in m.get("message", "") or "rt_error" in m.get("message", "")):
-                    errors.append(m["message"][:300])
+                if m.get("role") != "system":
+                    continue
+                try:
+                    e = json.loads(m.get("message") or "{}")
+                except Exception:
+                    continue
+                if e.get("event") in ("function_call_error", "error"):
+                    errors.append(str(e.get("error") or e.get("message"))[:300])
+                rt_err = (e.get("variable_table") or {}).get("rt_error")
+                if rt_err:
+                    errors.append("rt_error: " + str(rt_err.get("value") if isinstance(rt_err, dict) else rt_err)[:300])
             try:
                 freya.api("POST", "/api/v2/chat/end", {"callId": call})
             except Exception:
