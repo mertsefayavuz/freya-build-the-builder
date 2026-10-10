@@ -343,7 +343,8 @@ class Compiler:
                     "A customer who says when they can pay (for example when their salary arrives) is proposing a date, not a hardship and not "
                     "a refusal: CALL check_offer with that date. "
                     "Not being able to afford the amount is not a hardship by itself: match the customer's words to the situations named in the "
-                    "rules above (e.g. a request for lower instalments or a new plan is not a hardship). "
+                    "rules above (e.g. a request for lower instalments or a new plan is not a hardship; being tired, busy, stressed or "
+                    "coming from a work shift is not a hardship). "
                     "A question from the customer is NOT a refusal: answer it briefly and wait for their answer to your offer; do not call "
                     "customer_refused for a question. "
                     "Never repeat an offer you already made: if the customer's answer is cut off or unclear, ask them to finish their sentence.\n\n"
@@ -374,7 +375,7 @@ class Compiler:
                 "day or amount or say no, otherwise unclear.")],
             transitions=[tr("record_promise", both(c_eq("confirm", "yes"), c_eq("flow", "record")), "confirmed"),
                          tr("reopen", eq("confirm", "change"), "wants a change")],
-            max_turns=8, fallback="exit_stuck")
+            max_turns=15, fallback="exit_stuck")
         self.code_node("reopen", "reopen(vars, SPEC)\nvars['confirm'] = 'unclear'", [tr("negotiate_again", ALWAYS)])
         self.conv("negotiate_again", neg_task, {"type": "llm", "prompt": "Ask what the customer wants to change."}, first_only=False,
             tools=self.neg_tools(), extraction=neg_extract,
