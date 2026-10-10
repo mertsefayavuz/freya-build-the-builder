@@ -45,7 +45,7 @@ class Compiler:
         self.ep = tools_gen.endpoints(api)
         self.nodes = {}
         self.texts = spec.setdefault("texts", {})
-        self.id_hook = os.environ.get("BUILDER_ID_HOOK", "1") == "1"
+        self.id_hook = os.environ.get("BUILDER_ID_HOOK", "0") == "1"
         self._fallbacks()
 
     def _fallbacks(self):
@@ -130,12 +130,16 @@ class Compiler:
         self.nodes[name] = node
         return node
 
-    def say_node(self, name, text_var_expr, nxt):
+    def say_node(self, name, text_var_expr, nxt, transitions=()):
         """Passthrough conversation node that speaks a fixed text, then routes on."""
         self.nodes[name] = {"name": name, "node_type": "conversation", "passthrough": True,
                             "passthrough_default_transition": nxt, "on_enter": {"type": "tts", "text": text_var_expr},
                             "task_message": "Say nothing. No tool call is allowed.", "disable_inactivity_monitor": True,
-                            "transitions": [tr(nxt, ALWAYS, "always")]}
+                            "transitions": list(transitions) + [tr(nxt, ALWAYS, "always")]}
+
+    def _exit_text(self, key):
+        t = self.texts
+        return (str(t.get("exits", {}).get(key, "") or "") + " " + str(t.get("goodbye", "Goodbye."))).strip()
 
     def system_prompt(self):
         s = self.spec
@@ -364,10 +368,27 @@ class Compiler:
             baked={self.field(an, "product_id"): "{{note_pid}}", self.field(an, "reason"): "{{note_reason}}"})
         self.code_node("after_note", "after_note(vars, SPEC)", loop)
 
-        # exits
+        # exits with a fixed outcome: no code step at all (a sandbox outage must not stop the close call)
+        cc = "close_call"
+        cmap = s.get("closing", {}).get("map", {})
+
+        def literal_close(name, key):
+            outcome, reason = (cmap.get(key) or ["no_promise", key])[:2]
+            baked = {self.field(cc, "outcome"): outcome}
+            if reason:
+                baked[self.field(cc, "reason")] = reason
+            self.api_node(name, cc, [tr("end", ALWAYS)], baked=baked, retries=2)
+
         for key in ("wrong_number", "deceased", "unclear", "callback", "no_callback", "id_failed", "id_declined"):
-            self.code_node("exit_" + key, "set_exit(vars, SPEC, '%s')\nvars['farewell_text'] = exit_text(SPEC, '%s')" % (key, key), [tr("farewell", ALWAYS)])
-        self.code_node("exit_transfer", "final_outcome(vars, SPEC)\nvars['farewell_text'] = exit_text(SPEC, 'transfer')", [tr("farewell", ALWAYS)])
+            self.say_node("exit_" + key, self._exit_text(key), "close_" + key)
+            literal_close("close_" + key, key)
+        qf = self.field("transfer_to_agent", "queue")
+        queues = [k.split(":", 1)[1] for k in cmap if k.startswith("transfer:")]
+        q_trs = [tr("close_transfer_" + q, eq("transfer_to_agent_args.transfer_to_agent__" + qf, q), "queue " + q) for q in queues]
+        for q in queues:
+            literal_close("close_transfer_" + q, "transfer:" + q)
+        self.say_node("exit_transfer", self._exit_text("transfer"), "exit_transfer_code", transitions=q_trs)
+        self.code_node("exit_transfer_code", "final_outcome(vars, SPEC)", [tr("close", ALWAYS)])
         self.code_node("exit_stuck", "force_close(vars, SPEC)", loop)
         self.code_node("exit_open", "force_close(vars, SPEC)", loop)
 

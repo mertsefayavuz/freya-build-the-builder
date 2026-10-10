@@ -26,5 +26,9 @@
  "raw-local": {
   "workflow_id": "dfd12c66-7a0f-4af0-8002-e0fe376bb806",
   "agent_id": "0e1edc4a-7f10-46d7-96bb-f879277afaf3"
+ },
+ "dev-b-nohook": {
+  "workflow_id": "6b60f6f3-d64c-463a-9ba9-a34dc7c6b4ad",
+  "agent_id": "6a865b71-0b5f-475a-ad51-df5df7a735ae"
  }
 }
