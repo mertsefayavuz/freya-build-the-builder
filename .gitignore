@@ -5,3 +5,4 @@ __pycache__/
 results/
 .personas.json
 kit.zip
+out_*.json

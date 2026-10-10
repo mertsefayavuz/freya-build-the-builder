@@ -2,5 +2,9 @@
  "base": {
   "workflow_id": "2cec115c-f1c2-4d44-bf10-aac8586ee289",
   "agent_id": "1b727662-e21f-4024-a8db-f6c7156fa441"
+ },
+ "dev-a": {
+  "workflow_id": "8e9950a0-f285-438e-9e9a-13202b427a8b",
+  "agent_id": "69b938af-282a-42aa-960b-2393cb7b6725"
  }
 }

@@ -1,0 +1,320 @@
+"""spec + openapi -> Freya workflow JSON. Deterministic, no LLM.
+
+Graph (see docs/design/2026-10-10-builder-design.md):
+contact -> setup_id -> identity (-> identity_explain) -> load_account -> prep -> negotiate -> readback
+        -> record_start -> record_promise / write_note loops -> wrap -> farewell -> close -> end
+"""
+import json
+from . import codegen, tools_gen
+
+ALWAYS = {"operator": "always"}
+
+
+def eq(var, *vals):
+    return {"logic": "or", "conditions": [{"variable": var, "operator": "equals", "operand": str(v)} for v in vals]}
+
+
+def gt(var, n):
+    return {"logic": "or", "conditions": [{"variable": var, "operator": "greater_than", "operand": n}]}
+
+
+def both(*conds):
+    return {"logic": "or", "conditions": [{"logic": "and", "conditions": list(conds)}]}
+
+
+def c_eq(var, val):
+    return {"variable": var, "operator": "equals", "operand": str(val)}
+
+
+def c_gt(var, n):
+    return {"variable": var, "operator": "greater_than", "operand": n}
+
+
+def tr(target, cond, desc=None):
+    return {"target_node": target, "description": desc or target, "condition": cond}
+
+
+def bullet(lines):
+    return "\n".join("- " + x for x in lines if x)
+
+
+class Compiler:
+    def __init__(self, spec, api):
+        self.spec = spec
+        self.api = api
+        self.ep = tools_gen.endpoints(api)
+        self.nodes = {}
+        self.texts = spec.get("texts", {})
+
+    # ------------------------------------------------------------ helpers
+    def field(self, tool, role):
+        return tools_gen.role_field(self.ep[tool], role, self.spec, tool)
+
+    def code_node(self, name, call, transitions, next_default=None):
+        trs = list(transitions) + [tr(next_default or transitions[-1]["target_node"], ALWAYS, "always")] if next_default else list(transitions)
+        if trs[-1]["condition"] != ALWAYS:
+            trs.append(tr(trs[-1]["target_node"], ALWAYS, "always"))
+        self.nodes[name] = {
+            "name": name, "node_type": "code", "passthrough": True,
+            "passthrough_default_transition": trs[-1]["target_node"], "on_enter": {"type": "silent"},
+            "disable_inactivity_monitor": True,
+            "pre_actions": [{"type": "function", "function": {"name": "code_exec", "handler": "__function__:code_exec",
+                "parameters": {"type": "object", "properties": {
+                    "code": {"type": "string", "default": codegen.node_code(self.spec, call)},
+                    "timeout_ms": {"type": "number", "default": 15000}}}}}],
+            "transitions": trs,
+        }
+
+    def api_node(self, name, tool, transitions, pre=None, post=None, baked=None, mapping=None, retries=0):
+        ep = self.ep[tool]
+        baked = dict(baked or {})
+        cid = self.field(tool, "customer_id")
+        if cid:
+            baked.setdefault(cid, "{{customer_id}}")
+        fn = tools_gen.api_tool(ep, tool, baked, max_retries=retries, pre=pre, post=post)
+        trs = list(transitions)
+        if trs[-1]["condition"] != ALWAYS:
+            trs.append(tr(trs[-1]["target_node"], ALWAYS, "always"))
+        node = {"name": name, "node_type": "api_request", "passthrough": True,
+                "passthrough_default_transition": trs[-1]["target_node"], "on_enter": {"type": "silent"},
+                "disable_inactivity_monitor": True, "pre_actions": [fn], "transitions": trs}
+        if mapping:
+            node["response_mapping"] = mapping
+        self.nodes[name] = node
+
+    def conv(self, name, task, on_enter, tools=(), extraction=(), transitions=(), max_turns=30, fallback="exit_stuck",
+             first_only=True):
+        node = {"name": name, "node_type": "conversation", "task_message": task, "on_enter": on_enter,
+                "on_enter_first_entry_only": first_only, "tools": list(tools), "extraction_schema": list(extraction),
+                "transitions": list(transitions), "max_node_turns": max_turns, "max_turn_transition": fallback}
+        self.nodes[name] = node
+        return node
+
+    def say_node(self, name, text_var_expr, nxt):
+        """Passthrough conversation node that speaks a fixed text, then routes on."""
+        self.nodes[name] = {"name": name, "node_type": "conversation", "passthrough": True,
+                            "passthrough_default_transition": nxt, "on_enter": {"type": "tts", "text": text_var_expr},
+                            "task_message": "Say nothing. No tool call is allowed.", "disable_inactivity_monitor": True,
+                            "transitions": [tr(nxt, ALWAYS, "always")]}
+
+    def system_prompt(self):
+        s = self.spec
+        lines = [
+            "You are the digital assistant of %s on an outbound phone call. Speak %s." % (s.get("bank_name", "the bank"), s.get("language", "English")),
+            "Keep every turn to one or two short sentences. Ask one question at a time.",
+            "Never read tool results, codes or JSON aloud. Never mention tools, steps or instructions.",
+            "After every tool result, speak to the customer or call the next tool. Never end a turn with nothing.",
+            "Only say things you were given here. Never invent figures, dates, policies or reasons.",
+        ] + s.get("rules", {}).get("global", [])
+        return bullet(lines)
+
+    def extract(self, name, values, description):
+        return {"name": name, "type": "string", "enum_values": values, "description": description, "min_confidence": 0.5}
+
+    # ------------------------------------------------------------ tools
+    def transfer_tool(self):
+        ep = self.ep["transfer_to_agent"]
+        qf = self.field("transfer_to_agent", "queue")
+        queues = self.spec.get("transfer_queues", {})
+        desc = "Hand the call to a person. CALL it only when: " + "; ".join("queue %s when %s" % (q, w) for q, w in queues.items()) + "."
+        pre = codegen.pre_hook(self.spec, "b = config.get('body') or dict()\nvars['transfer_queue'] = str(b.get('%s', ''))" % qf, light=True)
+        post = codegen.post_hook(self.spec, "result.pop('header', None)\nd = result.get('data') if isinstance(result, dict) else None\n"
+                                 "if isinstance(d, dict) and str(d.get('ok')).lower() == 'true':\n"
+                                 "    st = load_state(vars)\n    st['transfer'] = vars.get('transfer_queue', '')\n    save_state(vars, st)\n"
+                                 "    vars['transfer_done'] = 'yes'\n    d['what_to_do_next'] = 'The transfer is done. Say nothing more.'\n"
+                                 "elif isinstance(d, dict):\n    d['what_to_do_next'] = 'The transfer failed. Tell the customer you could not transfer them, then continue.'", light=True)
+        cid = self.field("transfer_to_agent", "customer_id")
+        return tools_gen.api_tool(ep, "transfer_to_agent", {cid: "{{customer_id}}"} if cid else {}, model_fields=[qf],
+                                  description=desc, pre=pre, post=post)
+
+    def verify_tool(self):
+        ep = self.ep["verify_identity"]
+        ff, af = self.field("verify_identity", "field"), self.field("verify_identity", "answer")
+        cid = self.field("verify_identity", "customer_id")
+        qs = self.spec.get("identity", {}).get("questions", [])
+        desc = ("Check one security answer. CALL it every time the customer answers a security question, with the field of that question (%s). "
+                "Then follow what_to_do_next in the result." % ", ".join("%s = %s" % (q["field"], q.get("ask", "")) for q in qs))
+        return tools_gen.api_tool(ep, "verify_identity", {cid: "{{customer_id}}"} if cid else {}, model_fields=[ff, af],
+                                  descriptions={af: "The customer's answer. " + "; ".join("%s: %s" % (q["field"], {"date": "YYYY-MM-DD", "digits": "digits only"}.get(q.get("format"), "as said")) for q in qs)},
+                                  description=desc,
+                                  pre=codegen.pre_hook(self.spec, "id_pre_hook(vars, config, SPEC)"),
+                                  post=codegen.post_hook(self.spec, "id_post_hook(vars, result, SPEC)"))
+
+    def neg_tools(self):
+        pid_desc = {"type": "string", "description": "The product id from the product list, for example p1. Use all for every open product at once."}
+        return [
+            tools_gen.code_tool("check_offer",
+                "CALL it every time the customer proposes or accepts a payment day and/or amount, including when they accept your proposal. "
+                "It checks the rules and tells you what to say next.",
+                {"product_id": pid_desc,
+                 "date": {"type": "string", "description": "The payment day as YYYY-MM-DD, worked out from the calendar. Empty if no day was given."},
+                 "amount": {"type": "number", "description": "The amount the customer will pay. 0 if they did not name one (then the current amount is used)."}},
+                codegen.tool_code(self.spec, "tool_check_offer(vars, params, SPEC)"), required=["product_id", "date", "amount"]),
+            tools_gen.code_tool("customer_refused",
+                "CALL it when the customer refuses or gives no answer, for example a no to paying today with no day and no amount, or refuses your offer. "
+                "reason full_too_much when they say the full amount is too much. It tells you the next offer.",
+                {"product_id": pid_desc,
+                 "reason": {"type": "string", "enum": ["flat", "full_too_much"], "description": "flat or full_too_much"}},
+                codegen.tool_code(self.spec, "tool_customer_refused(vars, params, SPEC)")),
+            tools_gen.code_tool("vague_date",
+                "CALL it when the customer gives only a vague period (next week, end of the month, when my salary comes) instead of a day.",
+                {"product_id": pid_desc}, codegen.tool_code(self.spec, "tool_vague_date(vars, params, SPEC)")),
+            tools_gen.code_tool("set_result",
+                "CALL it to close a product without a promise: " + ", ".join(self.spec.get("product_results", [])) + ".",
+                {"product_id": pid_desc,
+                 "result": {"type": "string", "enum": self.spec.get("product_results", ["refused", "hardship", "dispute", "paid"])}},
+                codegen.tool_code(self.spec, "tool_set_result(vars, params, SPEC)")),
+            self.transfer_tool(),
+        ]
+
+    # ------------------------------------------------------------ graph
+    def build(self):
+        s, t, R = self.spec, self.texts, self.spec.get("rules", {})
+        transfer_tr = tr("exit_transfer", eq("transfer_done", "yes"), "the transfer was done")
+
+        # contact
+        contact_vals = ["confirmed", "third_party", "wrong_number", "deceased", "not_talking", "unclear"]
+        self.conv("contact",
+            "You called {{title}} {{first_name}} {{last_name}}. Find out whether you are speaking with that person.\n"
+            + bullet(R.get("contact", [])) + "\nIf the person is someone else, do not say why you are calling. No tool call is allowed in this step unless the customer insists on a human.",
+            {"type": "tts", "text": t.get("opening", "Hello. Am I speaking with {{title}} {{last_name}}?")},
+            tools=[self.transfer_tool()],
+            extraction=[self.extract("contact_status", contact_vals,
+                "Who answered, judged from the person's LAST message only. confirmed: they clearly confirm they are {{title}} {{last_name}} (%s). "
+                "third_party: someone else answered (a relative, colleague...). wrong_number: the number does not belong to that person. "
+                "deceased: the person has died. not_talking: they refuse to talk. unclear: anything else (hello, who is this, a question)." % ", ".join(s.get("confirm_phrases", [])))],
+            transitions=[
+                tr("setup_id", eq("contact_status", "confirmed"), "the customer confirmed"),
+                tr("setup_tp", eq("contact_status", "third_party"), "someone else answered"),
+                tr("exit_wrong_number", eq("contact_status", "wrong_number")),
+                tr("exit_deceased", eq("contact_status", "deceased")),
+                transfer_tr,
+                tr("exit_id_declined", both(c_eq("contact_status", "not_talking"), c_gt("contact.total_turns", 1)), "does not want to talk, twice"),
+                tr("exit_unclear", gt("contact.total_turns", int(s.get("max_contact_asks", 2)) - 1), "still unclear after the second ask"),
+            ], max_turns=6, fallback="exit_unclear")
+
+        cal = "\n\n{{calendar}}"
+        self.code_node("setup_id", "setup_call(vars, SPEC)", [tr("identity", ALWAYS)])
+        self.code_node("setup_tp", "setup_call(vars, SPEC)", [tr("third_party", ALWAYS)])
+
+        # third party
+        self.conv("third_party",
+            "The person on the line is not {{title}} {{last_name}}.\n" + bullet(R.get("third_party", [])) +
+            "\nWhen they say a day and time, work out the exact date from the calendar and CALL check_callback with it. "
+            "Latest check result: {{cb_say}}" + cal,
+            {"type": "llm", "prompt": "Ask politely when {{title}} {{last_name}} can be reached. Say nothing about why you are calling."},
+            tools=[tools_gen.code_tool("check_callback", "CALL it every time the person names a day and/or time when the customer can be reached.",
+                    {"date": {"type": "string", "description": "YYYY-MM-DD from the calendar"}, "time": {"type": "string", "description": "HH:MM, 24 hour"}},
+                    codegen.tool_code(s, "tool_check_callback(vars, params, SPEC)"))],
+            extraction=[self.extract("tp_status", ["wrong_number", "deceased", "other"],
+                "wrong_number if the person says the number does not belong to the customer, deceased if the customer has died, otherwise other.")],
+            transitions=[
+                tr("book_callback", eq("cb_ok", "yes"), "valid callback time"),
+                tr("exit_no_callback", eq("cb_ok", "no"), "no valid time"),
+                tr("exit_wrong_number", eq("tp_status", "wrong_number")),
+                tr("exit_deceased", eq("tp_status", "deceased")),
+            ], max_turns=10, fallback="exit_no_callback")
+        cb = self.ep["schedule_callback"]
+        self.api_node("book_callback", "schedule_callback",
+            [tr("exit_callback", ALWAYS)],
+            baked={self.field("schedule_callback", "date"): "{{cb_date}}", self.field("schedule_callback", "time"): "{{cb_time}}"})
+
+        # identity
+        qs = s.get("identity", {}).get("questions", [])
+        id_task = ("The person confirmed they are {{title}} {{last_name}}. Verify their identity.\n" + bullet(R.get("identity", [])) +
+                   "\nCALL verify_identity after every answer, then do exactly what what_to_do_next says. "
+                   "Never mention the debt, a product, an amount or why you are calling in this step.")
+        id_tr = [
+            tr("load_account", eq("id_state", "verified"), "identity verified"),
+            tr("exit_id_failed", eq("id_state", "failed"), "identity check failed"),
+            transfer_tr,
+        ]
+        self.conv("identity", id_task,
+            {"type": "tts", "text": t.get("identity_intro", "Thank you. What is " + (qs[0]["ask"] if qs else "your date of birth") + "?")},
+            tools=[self.verify_tool(), self.transfer_tool()],
+            extraction=[self.extract("id_refusal_1", ["yes", "no"],
+                "yes only if in their LAST message the person refuses to answer the security question or asks what the call is about instead of answering. Otherwise no.")],
+            transitions=id_tr + [tr("identity_explain", eq("id_refusal_1", "yes"), "refused once")],
+            max_turns=14, fallback="exit_id_failed")
+        self.conv("identity_explain",
+            id_task + "\nThe customer did not want to answer. Explain once, briefly, that these questions protect their account, and ask the question again.",
+            {"type": "llm", "prompt": "Explain in one sentence that the security questions protect their account, then ask the same question again."},
+            tools=[self.verify_tool(), self.transfer_tool()],
+            extraction=[self.extract("id_refusal_2", ["yes", "no"],
+                "yes only if in their LAST message the person again refuses to answer or again asks what the call is about. Otherwise no.")],
+            transitions=id_tr + [tr("exit_id_declined", eq("id_refusal_2", "yes"), "refused twice")],
+            max_turns=12, fallback="exit_id_failed")
+
+        # account + negotiation
+        self.api_node("load_account", "get_account", [tr("prep", ALWAYS)], retries=2,
+                      post=codegen.post_hook(s, "account_post_hook(vars, result, SPEC)"))
+        self.code_node("prep", "prepare(vars, SPEC)", [tr("negotiate", ALWAYS)])
+        neg_task = ("The customer is verified. You are collecting a late payment.\n" + bullet(R.get("negotiate", [])) +
+                    "\nHow to work: the tools below apply the bank's rules about dates, amounts and offers. Never decide a date or amount rule yourself. "
+                    "When the customer proposes or accepts a day and/or amount, CALL check_offer. When they refuse or do not answer, CALL customer_refused. "
+                    "When they give only a vague period, CALL vague_date. Then say what the latest instruction says. "
+                    "Do not read back or confirm a promise yourself: the read-back comes after all products are decided.\n\n"
+                    "{{neg_state}}\n\nLatest instruction: {{neg_say}}" + cal)
+        self.conv("negotiate", neg_task,
+            {"type": "tts", "text": t.get("after_verification", "") + " {{debt_statement}} {{first_ask}}"},
+            tools=self.neg_tools(),
+            transitions=[transfer_tr,
+                         tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
+                         tr("record_start", eq("neg_done", "yes"), "all products decided, none agreed")],
+            max_turns=40, fallback="record_start")
+        self.conv("readback",
+            "You read the agreed promises back and asked for confirmation. If the customer says yes, the next step records them. "
+            "If they want to change a day or amount, acknowledge it. No tool call is allowed in this step.",
+            {"type": "tts", "text": "{{readback_text}}"}, first_only=False,
+            extraction=[self.extract("confirm", ["yes", "change", "unclear"],
+                "yes if the customer clearly confirms the read-back in their LAST message, change if they want a different day or amount or say no, otherwise unclear.")],
+            transitions=[tr("record_start", eq("confirm", "yes"), "confirmed"), tr("reopen", eq("confirm", "change"), "wants a change")],
+            max_turns=4, fallback="record_start")
+        self.code_node("reopen", "reopen(vars, SPEC)\nvars['confirm'] = 'unclear'", [tr("negotiate_again", ALWAYS)])
+        self.conv("negotiate_again", neg_task, {"type": "llm", "prompt": "Ask what the customer wants to change."}, first_only=False,
+            tools=self.neg_tools(),
+            transitions=[transfer_tr,
+                         tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
+                         tr("record_start", eq("neg_done", "yes"), "all products decided, none agreed")],
+            max_turns=20, fallback="record_start")
+
+        # recording loops
+        loop = [tr("record_promise", eq("rec_pending", "yes")), tr("write_note", eq("note_pending", "yes")), tr("wrap", ALWAYS)]
+        self.code_node("record_start", "next_record(vars, SPEC)", loop)
+        cp = "create_promise"
+        self.api_node("record_promise", cp, [tr("after_record", ALWAYS)],
+            baked={self.field(cp, "product_id"): "{{rec_pid}}", self.field(cp, "amount"): "{{rec_amount}}", self.field(cp, "date"): "{{rec_date}}"},
+            pre=codegen.pre_hook(s, "b = config.get('body')\nif isinstance(b, dict):\n"
+                                    "    b['%s'] = str(vars.get('rec_pid'))\n    b['%s'] = round(float(vars.get('rec_amount')), 2)\n    b['%s'] = str(vars.get('rec_date'))[:10]"
+                                    % (self.field(cp, "product_id"), self.field(cp, "amount"), self.field(cp, "date")), light=True))
+        self.code_node("after_record", "after_record(vars, SPEC)", loop)
+        an = "add_note"
+        rf = self.field(an, "reason")
+        self.api_node("write_note", an, [tr("after_note", ALWAYS)],
+            baked={self.field(an, "product_id"): "{{note_pid}}", rf: "{{note_reason}}"})
+        self.code_node("after_note", "next_note(vars, SPEC)", [tr("write_note", eq("note_pending", "yes")), tr("wrap", ALWAYS)])
+        self.code_node("wrap", "final_outcome(vars, SPEC)\nvars['farewell_text'] = closing_text(vars, SPEC)", [tr("farewell", ALWAYS)])
+
+        # exits
+        for key in ("wrong_number", "deceased", "unclear", "callback", "no_callback", "id_failed", "id_declined"):
+            self.code_node("exit_" + key, "set_exit(vars, SPEC, '%s')\nvars['farewell_text'] = exit_text(SPEC, '%s')" % (key, key), [tr("farewell", ALWAYS)])
+        self.code_node("exit_transfer", "final_outcome(vars, SPEC)\nvars['farewell_text'] = exit_text(SPEC, 'transfer')", [tr("farewell", ALWAYS)])
+        self.code_node("exit_stuck", "final_outcome(vars, SPEC)\nvars['farewell_text'] = closing_text(vars, SPEC)", [tr("farewell", ALWAYS)])
+
+        # close
+        self.say_node("farewell", "{{farewell_text}}", "close")
+        cc = "close_call"
+        self.api_node("close", cc, [tr("end", ALWAYS)],
+            baked={self.field(cc, "outcome"): "{{outcome}}", self.field(cc, "reason"): "{{reason}}"},
+            pre=codegen.pre_hook(s, "b = config.get('body')\nif isinstance(b, dict) and not str(b.get('%s') or '').strip():\n    b.pop('%s', None)"
+                                 % (self.field(cc, "reason"), self.field(cc, "reason")), light=True))
+        self.nodes["end"] = {"name": "end", "node_type": "end_call", "on_enter": {"type": "silent"}, "disable_inactivity_monitor": True,
+                             "transitions": [], "terminal": {"type": "function", "function": {"name": "call_closed", "handler": "__function__:end_call",
+                             "parameters": {"type": "object", "properties": {"message_mode": {"type": "string", "default": "none"}}}}}}
+
+        return {"initial_node": "contact", "system_prompt": self.system_prompt(), "nodes": self.nodes, "global_nodes": {},
+                "test_variables": {"customer_id": "c_test", "first_name": "Daniel", "last_name": "Reyes", "title": "Mr", "now": "2026-10-14T11:00"}}
+
+
+def compile_workflow(spec, api):
+    return Compiler(spec, api).build()

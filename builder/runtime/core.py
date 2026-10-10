@@ -731,3 +731,37 @@ def account_post_hook(vars, result, spec):
     d = result.get('data')
     if isinstance(d, dict):
         vars['acct_json'] = json.dumps(d)
+
+
+# ---------------------------------------------------------------- call setup and closing texts
+
+def setup_call(vars, spec):
+    now = parse_now(vars.get('now'))
+    vars['calendar'] = calendar_block(now, spec)
+    vars['today_iso'] = now.date().isoformat()
+    for k in ('cb_say', 'neg_say', 'readback_text', 'wrap_text', 'farewell_text'):
+        if not vars.get(k):
+            vars[k] = ''
+    st = load_state(vars)
+    st.setdefault('today', now.date().isoformat())
+    save_state(vars, st)
+
+
+def exit_text(spec, key):
+    t = spec.get('texts', {})
+    return (str(t.get('exits', {}).get(key, '') or '') + ' ' + str(t.get('goodbye', 'Goodbye.'))).strip()
+
+
+def closing_text(vars, spec):
+    st = load_state(vars)
+    t = spec.get('texts', {})
+    parts = [wrap_text(st, spec)]
+    said = []
+    for p in st.get('products', []):
+        r = p.get('result', '')
+        msg = t.get('result_say', {}).get(r, '')
+        if msg and r not in said and not p.get('promise_ok'):
+            parts.append(msg)
+            said.append(r)
+    parts.append(t.get('goodbye', 'Goodbye.'))
+    return ' '.join(x for x in parts if x).strip()
