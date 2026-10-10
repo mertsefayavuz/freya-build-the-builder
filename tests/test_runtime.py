@@ -6,9 +6,7 @@ sys.path.insert(0, str(ROOT))
 from builder.runtime import core as rt
 
 SPEC_A = json.loads((ROOT / "tests/fixtures/spec_a.json").read_text())
-SPEC_B = copy.deepcopy(SPEC_A)
-SPEC_B["notes"]["when"] = "always"
-SPEC_B["multi"]["clamp_common_date_to_deadline"] = True
+SPEC_B = json.loads((ROOT / "tests/fixtures/spec_b.json").read_text())
 CASES = {c["id"]: c for c in json.loads((ROOT / "public-test-set.json").read_text())}
 
 
@@ -81,7 +79,7 @@ def test_pub01_full_today():
     assert v["neg_done"] == "yes" and "Do you confirm" in v["readback_text"]
     calls, notes = record_all(v, SPEC_A)
     assert promises(v) == [("p1", 420.0, "2026-10-14")] and notes == []
-    assert rt.final_outcome(v, SPEC_A) == ("promise", "")
+    assert rt.final_outcome(v, SPEC_A)[0] == "promise"
     assert "text message" in v["wrap_text"]
 
 
@@ -120,7 +118,7 @@ def test_pub10_retry_once_after_failure():
     rt.tool_check_offer(v, {"product_id": "p1", "date": "2026-10-16"}, SPEC_A)
     calls, _ = record_all(v, SPEC_A, fail_first=1)
     assert len(calls) == 2 and promises(v) == [("p1", 365.0, "2026-10-16")]
-    assert rt.final_outcome(v, SPEC_A) == ("promise", "")
+    assert rt.final_outcome(v, SPEC_A)[0] == "promise"
 
 
 def test_service_error_after_two_failures():

@@ -164,7 +164,7 @@ class Compiler:
                                  "elif isinstance(d, dict):\n    d['what_to_do_next'] = 'The transfer failed. Tell the customer you could not transfer them, then continue.'", light=True)
         cid = self.field("transfer_to_agent", "customer_id")
         return tools_gen.api_tool(ep, "transfer_to_agent", {cid: "{{customer_id}}"} if cid else {}, model_fields=[qf],
-                                  description=desc, pre=pre, post=post)
+                                  description=desc)    # no hooks: a sandbox hiccup must never block a transfer
 
     def verify_tool(self):
         ep = self.ep["verify_identity"]
@@ -176,7 +176,6 @@ class Compiler:
         return tools_gen.api_tool(ep, "verify_identity", {cid: "{{customer_id}}"} if cid else {}, model_fields=[ff, af],
                                   descriptions={af: "The customer's answer. " + "; ".join("%s: %s" % (q["field"], {"date": "YYYY-MM-DD", "digits": "digits only"}.get(q.get("format"), "as said")) for q in qs)},
                                   description=desc,
-                                  pre=codegen.pre_hook(self.spec, "id_pre_hook(vars, config, SPEC)"),
                                   post=codegen.post_hook(self.spec, "id_post_hook(vars, result, SPEC)"))
 
     def neg_tools(self):
@@ -209,7 +208,7 @@ class Compiler:
     # ------------------------------------------------------------ graph
     def build(self):
         s, t, R = self.spec, self.texts, self.spec.get("rules", {})
-        transfer_tr = tr("exit_transfer", eq("transfer_done", "yes"), "the transfer was done")
+        transfer_tr = tr("exit_transfer", gt("transfer_to_agent_success_count", 0), "the transfer was done")
 
         # contact
         contact_vals = ["confirmed", "third_party", "wrong_number", "deceased", "not_talking", "unclear"]
@@ -297,7 +296,9 @@ class Compiler:
                     "When they give only a vague period, CALL vague_date. Then say what the latest instruction says. "
                     "Do not read back or confirm a promise yourself: the read-back comes after all products are decided. "
                     "Never say that something is recorded, noted or registered: only the tools do that. When the customer says why they cannot "
-                    "or will not pay, CALL set_result (or transfer_to_agent) in that same turn.\n\n"
+                    "or will not pay, CALL set_result (or transfer_to_agent) in that same turn. "
+                    "A customer who says when they can pay (for example when their salary arrives) is proposing a date, not a hardship and not "
+                    "a refusal: CALL check_offer with that date.\n\n"
                     "{{neg_state}}\n\nLatest instruction: {{neg_say}}" + cal)
         done_tr = [transfer_tr,
                    tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
@@ -353,9 +354,7 @@ class Compiler:
         self.say_node("farewell", "{{farewell_text}}", "close")
         cc = "close_call"
         self.api_node("close", cc, [tr("end", ALWAYS)],
-            baked={self.field(cc, "outcome"): "{{outcome}}", self.field(cc, "reason"): "{{reason}}"},
-            pre=codegen.pre_hook(s, "b = config.get('body')\nif isinstance(b, dict) and not str(b.get('%s') or '').strip():\n    b.pop('%s', None)"
-                                 % (self.field(cc, "reason"), self.field(cc, "reason")), light=True))
+            baked={self.field(cc, "outcome"): "{{outcome}}", self.field(cc, "reason"): "{{close_reason}}"}, retries=2)
         self.nodes["end"] = {"name": "end", "node_type": "end_call", "on_enter": {"type": "silent"}, "disable_inactivity_monitor": True,
                              "transitions": [], "terminal": {"type": "function", "function": {"name": "call_closed", "handler": "__function__:end_call",
                              "parameters": {"type": "object", "properties": {"message_mode": {"type": "string", "default": "none"}}}}}}

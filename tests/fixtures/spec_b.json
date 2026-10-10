@@ -1,0 +1,275 @@
+{
+ "bank_name": "Freya Bank",
+ "currency": "",
+ "calendar": {
+  "workdays": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ],
+  "holidays": [
+   "2026-10-26",
+   "2026-11-11",
+   "2026-11-26",
+   "2026-12-25",
+   "2027-01-01"
+  ]
+ },
+ "product_fields": {
+  "id": "product_id",
+  "type": "type",
+  "amount": "past_due",
+  "days_late": "days_late"
+ },
+ "products": {
+  "credit_card": {
+   "label": "credit card ending <card_last4>",
+   "floor_field": "minimum_payment"
+  },
+  "personal_loan": {
+   "label": "personal loan",
+   "floor_field": "instalment_amount"
+  },
+  "car_loan": {
+   "label": "car loan",
+   "floor_field": "instalment_amount"
+  }
+ },
+ "bands": [
+  {
+   "name": "early",
+   "min_days": 1,
+   "max_days": 7,
+   "deadline": {
+    "kind": "business_days_after_today",
+    "n": 12
+   },
+   "attempts": [
+    {
+     "date": "last_business_day_this_week_else_next",
+     "amount": "current"
+    }
+   ]
+  },
+  {
+   "name": "late",
+   "min_days": 8,
+   "max_days": 45,
+   "deadline": {
+    "kind": "business_days_after_today",
+    "n": 7
+   },
+   "attempts": [
+    {
+     "date": "last_business_day_this_week_else_next",
+     "amount": "current"
+    },
+    {
+     "date": "deadline",
+     "amount": "floor"
+    }
+   ]
+  }
+ ],
+ "promise": {
+  "vague_asks": 1
+ },
+ "product_results": [
+  "refused",
+  "hardship",
+  "dispute",
+  "paid"
+ ],
+ "confirmation": {
+  "retries": 1
+ },
+ "notes": {
+  "when": "always",
+  "reasons": [
+   "refused",
+   "hardship",
+   "dispute",
+   "paid",
+   "service_error"
+  ]
+ },
+ "multi": {
+  "clamp_common_date_to_deadline": true
+ },
+ "callback": {
+  "days": [
+   "today",
+   "next_business_day"
+  ],
+  "start": "10:00",
+  "end": "19:00",
+  "after_now": true,
+  "max_invalid": 2
+ },
+ "identity": {
+  "questions": [
+   {
+    "field": "date_of_birth",
+    "ask": "your date of birth",
+    "format": "date"
+   },
+   {
+    "field": "phone_last4",
+    "ask": "the last four digits of the phone number we have on file",
+    "format": "digits"
+   }
+  ],
+  "numeric_date_order": "DMY",
+  "max_wrong": 3,
+  "hints": {
+   "day_month_swapped": "The day and month look swapped. Ask the customer to say the month as a word. This does not count as a wrong answer."
+  }
+ },
+ "texts": {
+  "product_sentence": "Your <label> has <past_due> past due and is <days_late> days late.",
+  "first_ask": "Can you make this payment today?",
+  "first_ask_multi": "Can you pay all of them today?",
+  "rest_overdue": "Say that the rest stays overdue.",
+  "readback": "Let me read all of that back: <list>. Do you confirm?",
+  "after_promise": "You will receive a text message confirming this promise.",
+  "record_failed": "I am sorry, I could not record the promise for",
+  "opening": "Hello, this is the digital assistant of Freya Bank calling. This call is recorded. Am I speaking with {{title}} {{last_name}}?",
+  "after_verification": "Thank you, you are verified. I am calling from the collections team about a late payment.",
+  "identity_intro": "Thank you. Before we continue I need to ask two security questions. What is your date of birth?",
+  "goodbye": "Thank you for your time. Goodbye.",
+  "exits": {
+   "id_failed": "I am sorry, I could not verify your identity. Please use the Freya Bank mobile app or visit a branch.",
+   "id_declined": "I understand. Without the security questions I cannot continue.",
+   "deceased": "I am sorry for your loss.",
+   "wrong_number": "I apologise for the inconvenience.",
+   "unclear": "I am sorry, I could not confirm who I am speaking with.",
+   "callback": "Thank you, we will call back then.",
+   "no_callback": "Thank you, we will try again another time.",
+   "transfer": "",
+   "not_talking": "I understand."
+  },
+  "result_say": {
+   "paid": "Thank you. Payments can take one business day to appear.",
+   "dispute": "I understand. I have noted that you dispute this debt.",
+   "hardship": "",
+   "refused": ""
+  }
+ },
+ "closing": {
+  "map": {
+   "promise": [
+    "promise",
+    ""
+   ],
+   "paid": [
+    "paid",
+    ""
+   ],
+   "transfer:restructuring": [
+    "transferred",
+    "restructuring"
+   ],
+   "transfer:general": [
+    "transferred",
+    "human"
+   ],
+   "transfer:support": [
+    "transferred",
+    "support"
+   ],
+   "refused": [
+    "no_promise",
+    "refused"
+   ],
+   "hardship": [
+    "no_promise",
+    "hardship"
+   ],
+   "dispute": [
+    "no_promise",
+    "dispute"
+   ],
+   "service_error": [
+    "no_promise",
+    "service_error"
+   ],
+   "id_failed": [
+    "not_verified",
+    "failed"
+   ],
+   "id_declined": [
+    "not_verified",
+    "declined"
+   ],
+   "callback": [
+    "not_reached",
+    "callback"
+   ],
+   "no_callback": [
+    "not_reached",
+    "no_callback"
+   ],
+   "wrong_number": [
+    "not_reached",
+    "wrong_number"
+   ],
+   "deceased": [
+    "not_reached",
+    "deceased"
+   ],
+   "unclear": [
+    "not_reached",
+    "unclear"
+   ]
+  }
+ },
+ "language": "English",
+ "confirm_phrases": [
+  "yes",
+  "that's me",
+  "speaking",
+  "the customer's own name"
+ ],
+ "transfer_queues": {
+  "restructuring": "the customer asks for a new payment plan or lower instalments",
+  "general": "the customer insists on speaking to a human after you asked once whether you can help",
+  "support": "the customer mentioned illness, a death in the family or job loss and accepted your offer to connect them with the customer support team"
+ },
+ "rules": {
+  "global": [
+   "If the customer asks whether you are a robot or an AI, say that you are Freya Bank's digital assistant and continue.",
+   "If the customer asks whether this is a scam, say they can verify the call by phoning Freya Bank's customer service number, and continue.",
+   "If you are asked something you cannot answer from the information you have, say you do not have that information. Never invent figures, dates or reasons.",
+   "Never offer a discount, a waiver, an instalment plan or any term that is not given to you."
+  ],
+  "contact": [
+   "Before identity is verified, never say collections, debt, payment, late, amount or any product, not even to relatives.",
+   "Only yes, that's me, speaking or the customer's own name counts as confirmation. Hello, go ahead or who is this do not. Answer a question first, then ask again."
+  ],
+  "third_party": [
+   "Do not say why you are calling. Say nothing beyond the opening sentence. A relative may not answer the security questions and may not be told anything about the account, even if they offer to pay.",
+   "Ask when the customer can be reached."
+  ],
+  "identity": [
+   "Ask the security questions one at a time, in order: first the date of birth, then the last four digits of the phone number on file.",
+   "Send a date of birth as YYYY-MM-DD, whatever way the customer said it. Read a date given only as numbers as day, then month, then year.",
+   "If the customer does not want to answer, or asks what the call is about instead of answering, explain once that the questions protect their account."
+  ],
+  "negotiate": [
+   "Ask for the full past-due amount first. Never ask how much the customer can pay. You propose every amount.",
+   "A date or an amount the customer proposes is never a refusal: check it with check_offer.",
+   "If the customer mentions illness, a death in the family or job loss: say one short sentence of sympathy, make no persuasion attempt, and offer to connect them with the customer support team. If they accept, call transfer_to_agent with queue support. If they decline, call set_result with hardship. If they still name a date or an amount themselves, check it with check_offer.",
+   "If the customer says they already paid this amount: call set_result with paid. A claim that the product was closed or paid off in the past is a dispute.",
+   "If the customer says the debt is not theirs or they never had the product: do not argue, call set_result with dispute.",
+   "If the customer asks for a new payment plan or lower instalments: do not describe any plan, call transfer_to_agent with queue restructuring.",
+   "If the customer asks for a human: ask once whether you can help first. If they insist, call transfer_to_agent with queue general.",
+   "If the customer says twice that they do not want to talk, call set_result with refused for all products (product_id all).",
+   "A recorded promise cannot be changed or cancelled in this call; if asked, say they can change it in the mobile app.",
+   "With several products: state every late product first, then ask once whether the customer can pay all of them today. If not, go through the products one by one in the order given; do not ask about today again for each product.",
+   "A dispute or an already-paid claim on one product does not end the call: call set_result for that product and continue with the others.",
+   "If the customer names one date for everything, call check_offer with product_id all."
+  ]
+ }
+}

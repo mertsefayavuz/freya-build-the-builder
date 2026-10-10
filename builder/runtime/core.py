@@ -635,14 +635,16 @@ def final_outcome(vars, spec):
             first = next((x for x in res if x and x != 'paid'), 'refused')
             o, r = pick(first, ['no_promise', first])
     vars['outcome'] = o
-    vars['reason'] = r
+    if r:
+        vars['close_reason'] = r
     return o, r
 
 
 def set_exit(vars, spec, key):
     v = spec.get('closing', {}).get('map', {}).get(key) or ['no_promise', key]
     vars['outcome'] = v[0]
-    vars['reason'] = v[1] if len(v) > 1 else ''
+    if len(v) > 1 and v[1]:
+        vars['close_reason'] = v[1]
 
 
 # ---------------------------------------------------------------- callback

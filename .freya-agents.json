@@ -6,7 +6,7 @@
  "dev-a": {
   "workflow_id": "8e9950a0-f285-438e-9e9a-13202b427a8b",
   "agent_id": "69b938af-282a-42aa-960b-2393cb7b6725",
-  "version": 2
+  "version": 3
  },
  "local-a": {
   "workflow_id": "ebe88d43-5541-4b9e-ab50-0f91b83f6387",
@@ -15,6 +15,7 @@
  },
  "or-a": {
   "workflow_id": "1e059871-d85f-466f-b3f5-8ee128e79bcb",
-  "agent_id": "71247390-72db-4683-a29c-a7c1450b64e5"
+  "agent_id": "71247390-72db-4683-a29c-a7c1450b64e5",
+  "version": 2
  }
 }
