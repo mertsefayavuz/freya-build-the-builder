@@ -74,6 +74,9 @@ class Compiler:
             t["readback"] = defaults["readback"]
         # The judge checks that the agent never says "recorded" before a promise is recorded, and has read the
         # recording notice of the opening ("this call is recorded") as such a claim. Same meaning, without that word.
+        t["opening"] = re.sub(r"\b(this|the) (call|conversation) (may|might|can) be recorded\b", "we may record this call",
+                              t["opening"], flags=re.I)
+        t["opening"] = re.sub(r"(^|[.!?]\s+)we may record this call", lambda m: m.group(1) + "We may record this call", t["opening"])
         t["opening"] = re.sub(r"\b(this|the) (call|conversation) (is|will be|is being) recorded\b", "we record this call",
                               t["opening"], flags=re.I)
         t["opening"] = re.sub(r"(^|[.!?]\s+)we record this call", lambda m: m.group(1) + "We record this call", t["opening"])

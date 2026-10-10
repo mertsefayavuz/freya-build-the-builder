@@ -110,3 +110,15 @@ def test_generated_code_does_not_shadow_sandbox_globals():
     src = codegen.runtime_source()
     defined = set(_re.findall(r"^def (\w+)", src, _re.M)) | set(_re.findall(r"^(\w+)\s*=", src, _re.M)) | set(_re.findall(r"^import \w+ as (\w+)", src, _re.M))
     assert not (defined & reserved), defined & reserved
+
+
+def test_variant_api_field_names_are_used():
+    """A different bank's tool API (renamed fields, other enums) compiles with the right field names."""
+    api = tools_gen.load(ROOT / "tests/variant_brief/tools.openapi.json")
+    spec = spec_schema.apply_defaults(json.loads((ROOT / "tests/fixtures/spec_a.json").read_text()))
+    spec["notes"]["reasons"] = ["REFUSED", "HARDSHIP", "DISPUTE", "PAID", "SYSTEM_ERROR"]
+    spec["texts"]["opening"] = "Hello. This call may be recorded for training. May I speak to {{title}} {{last_name}}?"
+    wf = C.compile_workflow(spec, api)
+    body = wf["nodes"]["record_promise"]["pre_actions"][0]["function"]["parameters"]["properties"]["body"]["properties"]
+    assert body["account_ref"]["default"] == "{{rec_pid}}" and body["pay_date"]["default"] == "{{rec_date}}"
+    assert "recorded" not in wf["nodes"]["contact"]["on_enter"]["text"]

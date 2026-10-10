@@ -76,6 +76,7 @@ def main():
     ap.add_argument("--spec", help="use this spec instead of extracting one (development)")
     ap.add_argument("--digest", action="store_true", help="first consolidate the documents into one rulebook (slower)")
     ap.add_argument("--no-smoke", action="store_true")
+    ap.add_argument("--no-deploy", action="store_true", help="stop after compiling (offline check)")
     a = ap.parse_args()
     docs, api = read_inputs(a.inputs)
     slot = a.slot or pathlib.Path([p for p in a.inputs if not p.endswith(".json")][-1] if docs else a.inputs[0]).stem
@@ -100,6 +101,9 @@ def main():
     wf = compiler.compile_workflow(spec, api)
     (out / (slot + ".workflow.json")).write_text(json.dumps(wf, indent=1), encoding="utf-8")
     trace.log("compiled", nodes=len(wf["nodes"]), bytes=len(json.dumps(wf)))
+    if a.no_deploy:
+        trace.end(deployed=False)
+        return
     v = freya.validate_workflow(slot, wf)
     trace.log("dry_run", result=v)
     ids = freya.save_workflow(slot, wf, state_file=str(ROOT / ".freya-agents.json"))

@@ -680,15 +680,38 @@ def wants_notes(st, spec):
     return True
 
 
+NOTE_SYNONYMS = {'refused': ['refus', 'declin', 'no_promise'], 'hardship': ['hardship', 'vulnerab'],
+                 'dispute': ['disput', 'not_mine'], 'paid': ['paid'], 'service_error': ['error', 'service', 'system', 'technical']}
+
+
+def note_reason(result, spec):
+    # The note tool's reason values come from the bank's API and may be spelled differently (REFUSED, SYSTEM_ERROR...).
+    notes = spec.get('notes', {})
+    reasons = notes.get('reasons') or ['refused', 'hardship', 'dispute', 'paid', 'service_error']
+    if not result:
+        return ''
+    explicit = (notes.get('reason_map') or {}).get(result)
+    if explicit in reasons:
+        return explicit
+    for r in reasons:
+        if str(r).lower() == result:
+            return r
+    for r in reasons:
+        if any(w in str(r).lower() for w in NOTE_SYNONYMS.get(result, [])):
+            return r
+    return ''
+
+
 def next_note(vars, spec):
     st = load_state(vars)
     vars['note_pending'] = 'no'
     if wants_notes(st, spec):
         for p in st.get('products', []):
-            if not p['promise_ok'] and not p['note_done'] and p['result'] in spec.get('notes', {}).get('reasons', ['refused', 'hardship', 'dispute', 'paid', 'service_error']):
+            reason = note_reason(p['result'], spec)
+            if not p['promise_ok'] and not p['note_done'] and reason:
                 vars['note_pending'] = 'yes'
                 vars['note_pid'] = p['id']
-                vars['note_reason'] = p['result']
+                vars['note_reason'] = reason
                 p['note_done'] = True
                 break
     save_state(vars, st)

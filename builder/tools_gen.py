@@ -7,9 +7,9 @@ import json, re
 
 ROLE_HINTS = {
     "customer_id": [r"^customer_id$", r"customer"],
-    "product_id": [r"^product_id$", r"product", r"account_id", r"policy"],
+    "product_id": [r"^product_id$", r"product", r"account", r"policy", r"contract", r"loan", r"_ref$"],
     "amount": [r"^amount$", r"amount", r"sum"],
-    "date": [r"^date$", r"date", r"day"],
+    "date": [r"^date$", r"date", r"day", r"_on$"],
     "time": [r"^time$", r"time", r"hour"],
     "field": [r"^field$", r"question", r"field"],
     "answer": [r"^answer$", r"answer", r"value"],

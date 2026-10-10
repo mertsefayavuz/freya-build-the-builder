@@ -388,3 +388,10 @@ def test_product_lines_hide_floor_and_deadline_and_survive_parallel_calls():
     for snap in (a, b):
         merged.update(snap.assigned)
     assert "Agreed" in merged["line_1"] and "1320" in merged["line_2"] and "140" in merged["line_3"]
+
+
+def test_note_reasons_follow_the_api_spelling():
+    spec = dict(SPEC_B, notes={"when": "always", "reasons": ["REFUSED", "HARDSHIP", "DISPUTE", "PAID", "SYSTEM_ERROR"]})
+    assert rt.note_reason("refused", spec) == "REFUSED"
+    assert rt.note_reason("service_error", spec) == "SYSTEM_ERROR"
+    assert rt.note_reason("dispute", spec) == "DISPUTE"
