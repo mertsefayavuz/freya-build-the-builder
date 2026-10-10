@@ -614,10 +614,21 @@ def force_close(vars, spec):
     advance(vars, spec)
 
 
+def transfer_queue_from_vars(vars, spec):
+    known = [k.split(':', 1)[1] for k in spec.get('closing', {}).get('map', {}) if k.startswith('transfer:')]
+    for k, v in vars.items():
+        if str(k).startswith('transfer_to_agent_args.') and str(v) in known:
+            return str(v)
+    for k, v in vars.items():
+        if str(k).startswith('transfer_to_agent_args.') and 'queue' in str(k):
+            return str(v)
+    return str(vars.get('transfer_queue') or '')
+
+
 def final_outcome(vars, spec):
     st = load_state(vars)
     if not st.get('transfer') and int(num(vars.get('transfer_to_agent_success_count'), 0)) > 0:
-        st['transfer'] = str(vars.get('transfer_queue') or vars.get('transfer_to_agent_args.queue') or '')
+        st['transfer'] = transfer_queue_from_vars(vars, spec)
         save_state(vars, st)
     omap = spec.get('closing', {}).get('map', {})
     def pick(key, default):

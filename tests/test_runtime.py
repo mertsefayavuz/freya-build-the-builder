@@ -259,3 +259,10 @@ def test_identity_hooks():
 def test_runtime_source_has_no_double_braces():
     src = (ROOT / "builder/runtime/core.py").read_text()
     assert "{" + "{" not in src and "}" + "}" not in src
+
+
+def test_transfer_queue_read_from_model_args_without_hooks():
+    v = start("PUB-09", SPEC_A)
+    v["transfer_to_agent_success_count"] = 1
+    v["transfer_to_agent_args.transfer_to_agent__queue"] = "restructuring"
+    assert rt.final_outcome(v, SPEC_A) == ("transferred", "restructuring")

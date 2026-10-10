@@ -92,8 +92,9 @@ exits: sentence the agent says before the goodbye when the call ends this way. U
   id_failed (identity check failed: e.g. where to go instead), id_declined (refused the security questions), deceased (condolence sentence),
   wrong_number, unclear (could not confirm who answered), callback (callback booked), no_callback (no valid callback time),
   transfer (being transferred to a person), not_talking.
-result_say: sentence said at the end when a product ends that way without a promise: paid (e.g. how long a payment takes to appear),
-  dispute, hardship, refused ("" if nothing is required).""",
+result_say: sentence the documents REQUIRE at the end when a product ends that way without a promise: paid (e.g. how long a payment
+  takes to appear), dispute, hardship, refused. "" if the documents require nothing. Never add sympathy, apologies or thanks here:
+  sympathy is said once during the conversation, and the goodbye is added separately.""",
         "skeleton": {"exits": {"id_failed": "<sentence>", "id_declined": "<sentence>", "deceased": "<sentence>", "wrong_number": "<sentence>",
                      "unclear": "<sentence>", "callback": "<sentence>", "no_callback": "<sentence>", "transfer": "<sentence>",
                      "not_talking": "<sentence>"},

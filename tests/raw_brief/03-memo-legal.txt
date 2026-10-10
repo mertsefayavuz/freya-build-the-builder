@@ -1,0 +1,11 @@
+INTERNAL MEMO - Legal & Compliance
+Date: 9 October 2026
+To: Early Collections
+Re: Changes to policy 2026.2 section 4, effective immediately
+
+1. Hard band: the deadline is the 6th working day after today, not the 5th. Persuasion attempts stay at 2.
+2. Soft band now covers 1 to 12 days overdue; hard band 13 to 60 days.
+3. 2026-11-01 is a Sunday and was listed by mistake. Remove it. Add 2026-11-02 (bank closing day) instead.
+4. Callbacks may only be booked until 17:30, not 18:00.
+
+All other rules of section 4 stay as they are.

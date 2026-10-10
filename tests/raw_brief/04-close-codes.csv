@@ -1,0 +1,17 @@
+situation,close outcome,close reason
+at least one promise recorded,promise,
+already paid,paid,
+transferred to restructuring,transferred,restructuring
+transferred to a person on request,transferred,human
+transferred to customer care after hardship,transferred,support
+refused / attempts used up / does not want to talk,no_promise,refused
+hardship and declined customer care,no_promise,hardship
+dispute,no_promise,dispute
+promise could not be recorded twice,no_promise,service_error
+three wrong security answers,not_verified,failed
+refused the security questions,not_verified,declined
+callback booked,not_reached,callback
+no valid callback time,not_reached,no_callback
+number does not belong to the customer,not_reached,wrong_number
+customer deceased,not_reached,deceased
+could not confirm who answered,not_reached,unclear
