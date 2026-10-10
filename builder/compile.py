@@ -142,7 +142,7 @@ class Compiler:
             "You are the digital assistant of %s on an outbound phone call. Speak %s." % (s.get("bank_name", "the bank"), s.get("language", "English")),
             "Keep every turn to one or two short sentences. Ask one question at a time.",
             "Never read tool results, codes or JSON aloud. Never mention tools, steps or instructions.",
-            "After every tool result, speak to the customer or call the next tool. Never end a turn with nothing.",
+            "Call at most ONE tool per message and wait for its result before calling another. After every tool result, speak to the customer. Never end a turn with nothing.",
             "Only say things you were given here. Never invent figures, dates, policies or reasons.",
         ] + s.get("rules", {}).get("global", [])
         return bullet(lines)
@@ -294,6 +294,7 @@ class Compiler:
                     "\nHow to work: the tools below apply the bank's rules about dates, amounts and offers. Never decide a date or amount rule yourself. "
                     "When the customer proposes or accepts a day and/or amount, CALL check_offer. When they refuse or do not answer, CALL customer_refused. "
                     "When they give only a vague period, CALL vague_date. Then say what the latest instruction says. "
+                    "With several products, handle ONE product per tool call, in the order of the product list; the instruction then tells you the next step. "
                     "Do not read back or confirm a promise yourself: the read-back comes after all products are decided. "
                     "Never say that something is recorded, noted or registered: only the tools do that. When the customer says why they cannot "
                     "or will not pay, CALL set_result (or transfer_to_agent) in that same turn. "

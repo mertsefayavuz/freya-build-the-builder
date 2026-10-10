@@ -470,6 +470,11 @@ def tool_set_result(vars, params, spec):
     allowed = spec.get('product_results', ['refused', 'hardship', 'dispute', 'paid'])
     if result not in allowed:
         return _finish(vars, st, spec, 'Unknown result. Use one of: ' + ', '.join(allowed) + '.')
+    if result == 'refused' and pid.lower() != 'all':
+        p = find(st, pid)
+        if p is not None and not p['result'] and p['attempts_used'] < p['attempts_max']:
+            # A refusal with persuasion attempts left is a flat refusal: make the next attempt (the bank's rule, not the model's).
+            return _finish(vars, st, spec, 'Do not close this product yet. ' + _attempt(st, p, spec))
     targets = [p for p in st.get('products', []) if p['result'] != 'agreed'] if pid.lower() == 'all' else [find(st, pid)]
     for p in targets:
         if p is not None:

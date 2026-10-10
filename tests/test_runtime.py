@@ -204,8 +204,10 @@ def test_pub13_common_date_clamped():
 
 def test_no_promise_reason_first_non_paid():
     v = start("PUB-11", SPEC_B)
-    for pid, r in (("p1", "paid"), ("p2", "dispute"), ("p3", "refused")):
+    for pid, r in (("p1", "paid"), ("p2", "dispute")):
         rt.tool_set_result(v, {"product_id": pid, "result": r}, SPEC_B)
+    rt.tool_customer_refused(v, {"product_id": "p3"}, SPEC_B)      # attempt 1 (early band)
+    rt.tool_set_result(v, {"product_id": "p3", "result": "refused"}, SPEC_B)   # no attempts left -> refused
     calls, notes = record_all(v, SPEC_B)
     assert notes == [("p1", "paid"), ("p2", "dispute"), ("p3", "refused")]
     assert rt.final_outcome(v, SPEC_B) == ("no_promise", "dispute")
@@ -266,3 +268,12 @@ def test_transfer_queue_read_from_model_args_without_hooks():
     v["transfer_to_agent_success_count"] = 1
     v["transfer_to_agent_args.transfer_to_agent__queue"] = "restructuring"
     assert rt.final_outcome(v, SPEC_A) == ("transferred", "restructuring")
+
+
+def test_set_result_refused_with_attempts_left_becomes_an_attempt():
+    v = start("PUB-12", SPEC_B)
+    rt.tool_check_offer(v, {"product_id": "p1", "date": "2026-10-15"}, SPEC_B)
+    rt.tool_set_result(v, {"product_id": "p2", "result": "refused"}, SPEC_B)
+    st = rt.load_state(v)
+    assert st["products"][1]["result"] == "" and st["products"][1]["attempts_used"] == 1
+    assert "Friday 16 October" in v["neg_say"]
