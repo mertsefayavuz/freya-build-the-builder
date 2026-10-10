@@ -55,7 +55,7 @@ def main():
     ap.add_argument("inputs", nargs="+")
     ap.add_argument("--slot")
     ap.add_argument("--spec", help="use this spec instead of extracting one (development)")
-    ap.add_argument("--no-review", action="store_true")
+    ap.add_argument("--digest", action="store_true", help="first consolidate the documents into one rulebook (slower)")
     ap.add_argument("--no-smoke", action="store_true")
     a = ap.parse_args()
     docs, api = read_inputs(a.inputs)
@@ -70,9 +70,9 @@ def main():
         spec = spec_schema.apply_defaults(json.load(open(a.spec, encoding="utf-8")))
         trace.log("spec_loaded", path=a.spec)
     else:
-        rulebook = extract.digest(docs, api)
-        (out / (slot + ".rulebook.md")).write_text(rulebook, encoding="utf-8")
-        spec = extract.build_spec(docs, api, eps, rulebook, review=not a.no_review)
+        spec, rulebook, _ = extract.build_spec(docs, api, eps, use_digest=a.digest)
+        if rulebook:
+            (out / (slot + ".rulebook.md")).write_text(rulebook, encoding="utf-8")
     errs = spec_schema.validate_spec(spec, eps)
     (out / (slot + ".spec.json")).write_text(json.dumps(spec, indent=1), encoding="utf-8")
     trace.log("spec_ready", errors=errs, bands=[b.get("name") for b in spec.get("bands", [])],

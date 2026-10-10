@@ -2,7 +2,7 @@
 
 Graph (see docs/design/2026-10-10-builder-design.md):
 contact -> setup_id -> identity (-> identity_explain) -> load_account -> prep -> negotiate -> readback
-        -> record_start -> record_promise / write_note loops -> wrap -> farewell -> close -> end
+        -> record_promise / write_note loops (after_record / after_note decide) -> farewell -> close -> end
 """
 import json
 from . import codegen, tools_gen
@@ -65,7 +65,7 @@ class Compiler:
             "transitions": trs,
         }
 
-    def api_node(self, name, tool, transitions, pre=None, post=None, baked=None, mapping=None, retries=0):
+    def api_node(self, name, tool, transitions, pre=None, post=None, baked=None, mapping=None, retries=0, on_enter=None):
         ep = self.ep[tool]
         baked = dict(baked or {})
         cid = self.field(tool, "customer_id")
@@ -76,7 +76,7 @@ class Compiler:
         if trs[-1]["condition"] != ALWAYS:
             trs.append(tr(trs[-1]["target_node"], ALWAYS, "always"))
         node = {"name": name, "node_type": "api_request", "passthrough": True,
-                "passthrough_default_transition": trs[-1]["target_node"], "on_enter": {"type": "silent"},
+                "passthrough_default_transition": trs[-1]["target_node"], "on_enter": on_enter or {"type": "silent"},
                 "disable_inactivity_monitor": True, "pre_actions": [fn], "transitions": trs}
         if mapping:
             node["response_mapping"] = mapping
@@ -247,7 +247,8 @@ class Compiler:
 
         # account + negotiation
         self.api_node("load_account", "get_account", [tr("prep", ALWAYS)], retries=2,
-                      post=codegen.post_hook(s, "account_post_hook(vars, result, SPEC)"))
+                      mapping=[{"path": "data.products", "variable": "products"}],
+                      on_enter={"type": "tts", "text": t.get("after_verification", "Thank you.")})
         self.code_node("prep", "prepare(vars, SPEC)", [tr("negotiate", ALWAYS)])
         neg_task = ("The customer is verified. You are collecting a late payment.\n" + bullet(R.get("negotiate", [])) +
                     "\nHow to work: the tools below apply the bank's rules about dates, amounts and offers. Never decide a date or amount rule yourself. "
@@ -255,45 +256,40 @@ class Compiler:
                     "When they give only a vague period, CALL vague_date. Then say what the latest instruction says. "
                     "Do not read back or confirm a promise yourself: the read-back comes after all products are decided.\n\n"
                     "{{neg_state}}\n\nLatest instruction: {{neg_say}}" + cal)
+        done_tr = [transfer_tr,
+                   tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
+                   tr("write_note", both(c_eq("neg_done", "yes"), c_eq("flow", "note")), "none agreed, notes to write"),
+                   tr("farewell", both(c_eq("neg_done", "yes"), c_eq("flow", "farewell")), "none agreed, nothing to write")]
         self.conv("negotiate", neg_task,
-            {"type": "tts", "text": t.get("after_verification", "") + " {{debt_statement}} {{first_ask}}"},
+            {"type": "tts", "text": "{{debt_statement}} {{first_ask}}"},
             tools=self.neg_tools(),
-            transitions=[transfer_tr,
-                         tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
-                         tr("record_start", eq("neg_done", "yes"), "all products decided, none agreed")],
-            max_turns=40, fallback="record_start")
+            transitions=done_tr,
+            max_turns=40, fallback="exit_stuck")
         self.conv("readback",
             "You read the agreed promises back and asked for confirmation. If the customer says yes, the next step records them. "
             "If they want to change a day or amount, acknowledge it. No tool call is allowed in this step.",
             {"type": "tts", "text": "{{readback_text}}"}, first_only=False,
             extraction=[self.extract("confirm", ["yes", "change", "unclear"],
                 "yes if the customer clearly confirms the read-back in their LAST message, change if they want a different day or amount or say no, otherwise unclear.")],
-            transitions=[tr("record_start", eq("confirm", "yes"), "confirmed"), tr("reopen", eq("confirm", "change"), "wants a change")],
-            max_turns=4, fallback="record_start")
+            transitions=[tr("record_promise", both(c_eq("confirm", "yes"), c_eq("flow", "record")), "confirmed"),
+                         tr("reopen", eq("confirm", "change"), "wants a change")],
+            max_turns=4, fallback="exit_stuck")
         self.code_node("reopen", "reopen(vars, SPEC)\nvars['confirm'] = 'unclear'", [tr("negotiate_again", ALWAYS)])
         self.conv("negotiate_again", neg_task, {"type": "llm", "prompt": "Ask what the customer wants to change."}, first_only=False,
             tools=self.neg_tools(),
-            transitions=[transfer_tr,
-                         tr("readback", both(c_eq("neg_done", "yes"), c_gt("n_agreed", 0)), "all products decided, some agreed"),
-                         tr("record_start", eq("neg_done", "yes"), "all products decided, none agreed")],
-            max_turns=20, fallback="record_start")
+            transitions=done_tr,
+            max_turns=20, fallback="exit_stuck")
 
-        # recording loops
-        loop = [tr("record_promise", eq("rec_pending", "yes")), tr("write_note", eq("note_pending", "yes")), tr("wrap", ALWAYS)]
-        self.code_node("record_start", "next_record(vars, SPEC)", loop)
+        # recording loops (one code step between engine calls: after_record / after_note decide the next step)
+        loop = [tr("record_promise", eq("flow", "record")), tr("write_note", eq("flow", "note")), tr("farewell", ALWAYS)]
         cp = "create_promise"
         self.api_node("record_promise", cp, [tr("after_record", ALWAYS)],
-            baked={self.field(cp, "product_id"): "{{rec_pid}}", self.field(cp, "amount"): "{{rec_amount}}", self.field(cp, "date"): "{{rec_date}}"},
-            pre=codegen.pre_hook(s, "b = config.get('body')\nif isinstance(b, dict):\n"
-                                    "    b['%s'] = str(vars.get('rec_pid'))\n    b['%s'] = round(float(vars.get('rec_amount')), 2)\n    b['%s'] = str(vars.get('rec_date'))[:10]"
-                                    % (self.field(cp, "product_id"), self.field(cp, "amount"), self.field(cp, "date")), light=True))
+            baked={self.field(cp, "product_id"): "{{rec_pid}}", self.field(cp, "amount"): "{{rec_amount}}", self.field(cp, "date"): "{{rec_date}}"})
         self.code_node("after_record", "after_record(vars, SPEC)", loop)
         an = "add_note"
-        rf = self.field(an, "reason")
         self.api_node("write_note", an, [tr("after_note", ALWAYS)],
-            baked={self.field(an, "product_id"): "{{note_pid}}", rf: "{{note_reason}}"})
-        self.code_node("after_note", "next_note(vars, SPEC)", [tr("write_note", eq("note_pending", "yes")), tr("wrap", ALWAYS)])
-        self.code_node("wrap", "final_outcome(vars, SPEC)\nvars['farewell_text'] = closing_text(vars, SPEC)", [tr("farewell", ALWAYS)])
+            baked={self.field(an, "product_id"): "{{note_pid}}", self.field(an, "reason"): "{{note_reason}}"})
+        self.code_node("after_note", "after_note(vars, SPEC)", loop)
 
         # exits
         for key in ("wrong_number", "deceased", "unclear", "callback", "no_callback", "id_failed", "id_declined"):

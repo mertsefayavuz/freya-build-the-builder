@@ -22,24 +22,26 @@ def start(case_id, spec):
 
 def record_all(v, spec, fail_first=0):
     """Simulate the engine's record loop: next_record -> api -> after_record."""
-    rt.next_record(v, spec)
-    calls, s, f = [], 0, 0
-    while v.get("rec_pending") == "yes":
-        calls.append((v["rec_pid"], v["rec_amount"], v["rec_date"]))
-        if fail_first > 0:
-            fail_first -= 1
-            f += 1
-            v["record_promise_failure_count"] = f
+    if "flow" not in v:
+        rt.advance(v, spec)
+    calls, notes, s, f = [], [], 0, 0
+    while v["flow"] != "farewell":
+        if v["flow"] == "record":
+            calls.append((v["rec_pid"], v["rec_amount"], v["rec_date"]))
+            if fail_first > 0:
+                fail_first -= 1
+                f += 1
+                v["record_promise_failure_count"] = f
+            else:
+                s += 1
+                v["record_promise_success_count"] = s
+                v["record_promise_response.data.ok"] = "true"
+            rt.after_record(v, spec)
         else:
-            s += 1
-            v["record_promise_success_count"] = s
-            v["record_promise_response.data.ok"] = "true"
-        rt.after_record(v, spec)
-        assert len(calls) < 10
-    notes = []
-    while v.get("note_pending") == "yes":
-        notes.append((v["note_pid"], v["note_reason"]))
-        rt.next_note(v, spec)
+            notes.append((v["note_pid"], v["note_reason"]))
+            rt.after_note(v, spec)
+        assert len(calls) + len(notes) < 12
+    assert v["outcome"] and "farewell_text" in v
     return calls, notes
 
 

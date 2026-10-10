@@ -5,6 +5,7 @@
  },
  "dev-a": {
   "workflow_id": "8e9950a0-f285-438e-9e9a-13202b427a8b",
-  "agent_id": "69b938af-282a-42aa-960b-2393cb7b6725"
+  "agent_id": "69b938af-282a-42aa-960b-2393cb7b6725",
+  "version": 2
  }
 }

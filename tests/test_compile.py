@@ -70,7 +70,6 @@ def test_tools_follow_a_changed_openapi():
     wf = C.compile_workflow(SPEC, api)
     body = wf["nodes"]["record_promise"]["pre_actions"][0]["function"]["parameters"]["properties"]["body"]["properties"]
     assert "promised_amount" in body and "amount" not in body
-    assert "promised_amount" in wf["nodes"]["record_promise"]["pre_actions"][0]["pre_process_code"] or True
     tt = [t for t in wf["nodes"]["negotiate"]["tools"] if t["function"]["name"] == "transfer_to_agent"][0]
     assert "vip" in tt["function"]["parameters"]["properties"]["body"]["properties"]["queue"]["enum"]
 

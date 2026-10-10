@@ -401,6 +401,8 @@ def _finish(vars, st, spec, say):
     vars['readback_text'] = readback_text(st, spec)
     vars['n_agreed'] = str(len([p for p in st.get('products', []) if p['result'] == 'agreed']))
     save_state(vars, st)
+    if vars['neg_done'] == 'yes':
+        advance(vars, spec)
     return say
 
 
@@ -529,7 +531,31 @@ def after_record(vars, spec):
         elif p['record_tries'] >= 1 + int(spec.get('confirmation', {}).get('retries', 1)):
             p['result'] = 'service_error'
     save_state(vars, st)
+    advance(vars, spec)
+
+
+def advance(vars, spec):
+    """Decide what the engine does next: 'record' a promise, write a 'note', or say the 'farewell'.
+    For the farewell it also computes outcome, reason and the closing text, so no extra code step runs."""
     next_record(vars, spec)
+    if vars.get('rec_pending') == 'yes':
+        vars['flow'] = 'record'
+    elif vars.get('note_pending') == 'yes':
+        vars['flow'] = 'note'
+    else:
+        vars['flow'] = 'farewell'
+        final_outcome(vars, spec)
+        vars['farewell_text'] = closing_text(vars, spec)
+
+
+def after_note(vars, spec):
+    next_note(vars, spec)
+    if vars.get('note_pending') == 'yes':
+        vars['flow'] = 'note'
+    else:
+        vars['flow'] = 'farewell'
+        final_outcome(vars, spec)
+        vars['farewell_text'] = closing_text(vars, spec)
 
 
 def wants_notes(st, spec):

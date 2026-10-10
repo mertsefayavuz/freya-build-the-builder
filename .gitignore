@@ -6,3 +6,5 @@ results/
 .personas.json
 kit.zip
 out_*.json
+out/
+traces/
