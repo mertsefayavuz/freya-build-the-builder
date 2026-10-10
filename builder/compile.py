@@ -4,7 +4,7 @@ Graph (see docs/design/2026-10-10-builder-design.md):
 contact -> setup_id -> identity (-> identity_explain) -> load_account -> prep -> negotiate -> readback
         -> record_promise / write_note loops (after_record / after_note decide) -> farewell -> close -> end
 """
-import json
+import json, re
 from . import codegen, tools_gen
 
 ALWAYS = {"operator": "always"}
@@ -66,6 +66,11 @@ class Compiler:
         for k, v in defaults.items():
             if not str(t.get(k) or "").strip():
                 t[k] = v
+        words = lambda x: len(re.findall(r"[A-Za-z]{2,}", re.sub(r"<[^>]*>|\{\{[^}]*\}\}", " ", str(x))))
+        if words(t["product_sentence"]) < 3 or "<label>" not in t["product_sentence"]:
+            t["product_sentence"] = defaults["product_sentence"]
+        if "<list>" not in t["readback"]:
+            t["readback"] = defaults["readback"]
         t.setdefault("exits", {})
         if not str(t["exits"].get("id_failed") or "").strip():
             t["exits"]["id_failed"] = "I am sorry, I could not verify your identity."

@@ -10,6 +10,7 @@
  },
  "local-a": {
   "workflow_id": "ebe88d43-5541-4b9e-ab50-0f91b83f6387",
-  "agent_id": "7d4e7c54-c1ac-497b-b744-21ac75306bb8"
+  "agent_id": "7d4e7c54-c1ac-497b-b744-21ac75306bb8",
+  "version": 2
  }
 }

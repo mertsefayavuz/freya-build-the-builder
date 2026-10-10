@@ -461,7 +461,7 @@ def tool_vague_date(vars, params, spec):
 def tool_set_result(vars, params, spec):
     st = load_state(vars)
     pid = str(params.get('product_id') or '').strip()
-    result = str(params.get('result') or '').strip()
+    result = str(params.get('result') or params.get('reason') or '').strip().lower()
     allowed = spec.get('product_results', ['refused', 'hardship', 'dispute', 'paid'])
     if result not in allowed:
         return _finish(vars, st, spec, 'Unknown result. Use one of: ' + ', '.join(allowed) + '.')

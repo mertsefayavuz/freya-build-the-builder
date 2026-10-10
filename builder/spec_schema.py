@@ -176,7 +176,23 @@ def validate_spec(spec, api_endpoints=None):
     return errs
 
 
+def _norm_close(v):
+    if isinstance(v, str):
+        return [v, ""]
+    if isinstance(v, dict):
+        return [str(v.get("outcome", "")), str(v.get("reason") or "")]
+    if isinstance(v, list):
+        v = [("" if x is None else str(x)) for x in v][:2]
+        return v + [""] * (2 - len(v))
+    return ["", ""]
+
+
 def apply_defaults(spec):
+    cm = spec.setdefault("closing", {}).setdefault("map", {})
+    for k in list(cm):
+        cm[k] = _norm_close(cm[k])
+        if cm[k][1].lower() in ("none", "null", "-", "n/a"):
+            cm[k][1] = ""
     spec.setdefault("language", "English")
     spec.setdefault("currency", "")
     spec.setdefault("promise", {}).setdefault("vague_asks", 1)
