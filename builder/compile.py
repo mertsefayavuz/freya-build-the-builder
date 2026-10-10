@@ -155,6 +155,10 @@ class Compiler:
             "Call at most ONE tool per message and wait for its result before calling another. After every tool result, speak to the customer. Never end a turn with nothing.",
             "Only say things you were given here. Never invent figures, dates, policies or reasons.",
             "If the customer corrects themselves (for example 'ten, sorry, eleven'), always use the corrected value.",
+            "When you have to ask the same thing again, say it in different words than the last time. Exception: a sentence the rules "
+            "quote word for word stays exactly as quoted.",
+            "If a tool call fails or returns an error (a technical failure, not a normal answer such as a wrong security answer), tell the "
+            "customer briefly that you have a technical problem on your side, and never say that anything was done or recorded.",
             "Never say goodbye and never end the conversation yourself: the call is closed for you at the right moment. If the customer only "
             "chats or their sentence is cut off, answer briefly and repeat your last question.",
         ] + s.get("rules", {}).get("global", [])
