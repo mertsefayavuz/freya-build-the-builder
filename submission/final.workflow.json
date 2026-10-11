@@ -1,0 +1,1627 @@
+{
+ "workflow_id": "6d2f62eb-ac29-4bb2-9c9c-a01b386a7d1e",
+ "agent_id": "cd24db51-32df-4d15-a117-24536ac92962",
+ "updated_at": "2026-10-11T19:53:50.008Z",
+ "workflow": {
+  "nodes": {
+   "say_why": {
+    "name": "say_why",
+    "tools": [],
+    "on_enter": {
+     "text": "Kredi kart\u0131 ekstre borcunuz nedeniyle ar\u0131yorum.",
+     "type": "tts"
+    },
+    "node_type": "conversation",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [],
+    "transitions": [
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "always",
+      "target_node": "say_card"
+     }
+    ],
+    "role_message": "",
+    "task_message": "Fixed line already spoken. No tool call.",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": "say_card",
+    "return_to_previous_on_interrupt": false
+   },
+   "ask_card": {
+    "name": "ask_card",
+    "tools": [],
+    "on_enter": {
+     "text": "{{card_question}}",
+     "type": "tts"
+    },
+    "node_type": "conversation",
+    "assertions": [],
+    "passthrough": false,
+    "pre_actions": [],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": "",
+         "operator": "not_equals",
+         "variable": "card_choice"
+        }
+       ]
+      },
+      "description": "card named",
+      "target_node": "match_card"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "keep asking",
+      "target_node": "ask_card"
+     }
+    ],
+    "role_message": "",
+    "task_message": "The caller must pick one of their cards. The question is spoken already. Listen for the card named (product name or last four digits). Extract card_choice. Do not decide the card yourself. Do not call tools.",
+    "interruptible": true,
+    "max_node_turns": 5,
+    "response_mapping": [],
+    "extraction_schema": [
+     {
+      "name": "card_choice",
+      "type": "string",
+      "description": "The card the caller names: product name or last four digits, as said",
+      "min_confidence": 0.6
+     }
+    ],
+    "max_turn_transition": "end_tries",
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": null,
+    "return_to_previous_on_interrupt": false
+   },
+   "ask_more": {
+    "name": "ask_more",
+    "tools": [],
+    "on_enter": {
+     "text": "Ba\u015fka bir i\u015flem ister misiniz?",
+     "type": "tts"
+    },
+    "node_type": "conversation",
+    "assertions": [],
+    "passthrough": false,
+    "pre_actions": [],
+    "transitions": [
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "always",
+      "target_node": "end_menu"
+     }
+    ],
+    "role_message": "",
+    "task_message": "The caller answered the question whether another service is wanted. Do not call tools.",
+    "interruptible": true,
+    "max_node_turns": 2,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": "end_menu",
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": true,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": null,
+    "return_to_previous_on_interrupt": false
+   },
+   "end_menu": {
+    "name": "end_menu",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "terminal": {
+     "type": "function",
+     "function": {
+      "name": "end_menu",
+      "handler": "__function__:end_call",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "message_mode": {
+         "type": "string",
+         "default": "custom"
+        },
+        "spoken_message": {
+         "type": "string",
+         "default": "Sizi ana men\u00fcye y\u00f6nlendiriyorum."
+        }
+       }
+      },
+      "description": ""
+     }
+    },
+    "node_type": "end_call",
+    "assertions": [],
+    "passthrough": false,
+    "pre_actions": [],
+    "transitions": [],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": null,
+    "return_to_previous_on_interrupt": false
+   },
+   "end_sent": {
+    "name": "end_sent",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "terminal": {
+     "type": "function",
+     "function": {
+      "name": "end_sent",
+      "handler": "__function__:end_call",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "message_mode": {
+         "type": "string",
+         "default": "custom"
+        },
+        "spoken_message": {
+         "type": "string",
+         "default": "Ekstreniz kay\u0131tl\u0131 e-posta adresinize g\u00f6nderildi. Sizi ana men\u00fcye y\u00f6nlendiriyorum."
+        }
+       }
+      },
+      "description": ""
+     }
+    },
+    "node_type": "end_call",
+    "assertions": [],
+    "passthrough": false,
+    "pre_actions": [],
+    "transitions": [],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": null,
+    "return_to_previous_on_interrupt": false
+   },
+   "say_card": {
+    "name": "say_card",
+    "tools": [],
+    "on_enter": {
+     "text": "{{debt_card}}",
+     "type": "tts"
+    },
+    "node_type": "conversation",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": "1",
+         "operator": "equals",
+         "variable": "has_figs"
+        }
+       ]
+      },
+      "description": "figures",
+      "target_node": "say_figs"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "always",
+      "target_node": "after_figs"
+     }
+    ],
+    "role_message": "",
+    "task_message": "Fixed line already spoken. No tool call.",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": "after_figs",
+    "return_to_previous_on_interrupt": false
+   },
+   "say_figs": {
+    "name": "say_figs",
+    "tools": [],
+    "on_enter": {
+     "text": "{{debt_figs}}",
+     "type": "tts"
+    },
+    "node_type": "conversation",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [],
+    "transitions": [
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "always",
+      "target_node": "after_figs"
+     }
+    ],
+    "role_message": "",
+    "task_message": "Fixed line already spoken. No tool call.",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": "after_figs",
+    "return_to_previous_on_interrupt": false
+   },
+   "send_pdf": {
+    "name": "send_pdf",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "node_type": "api_request",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [
+     {
+      "type": "function",
+      "config": {
+       "timeoutMs": 12000,
+       "maxRetries": 0
+      },
+      "function": {
+       "name": "send_pdf",
+       "handler": "__function__:api_call",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "url": {
+          "type": "string",
+          "default": "https://freya-bank-statement-mock.mock-hello.workers.dev/voice/v1/statement.pdf.send"
+         },
+         "body": {
+          "type": "object",
+          "properties": {
+           "call": {
+            "type": "object",
+            "properties": {
+             "lang": {
+              "type": "string",
+              "default": "tr"
+             }
+            }
+           },
+           "data": {
+            "type": "object",
+            "properties": {
+             "cardNumber": {
+              "type": "string",
+              "default": "{{chosen_card_number}}"
+             },
+             "customerNo": {
+              "type": "string",
+              "default": "{{customerNumber}}"
+             },
+             "currencyType": {
+              "type": "string",
+              "default": "TL"
+             },
+             "emailAddress": {
+              "type": "string",
+              "default": "{{registered_email}}"
+             },
+             "statementDate": {
+              "type": "string",
+              "default": "{{statement_date}}"
+             }
+            }
+           }
+          }
+         },
+         "method": {
+          "type": "string",
+          "default": "POST"
+         },
+         "headers": {
+          "type": "object",
+          "properties": {
+           "Content-Type": {
+            "type": "string",
+            "default": "application/json"
+           }
+          }
+         }
+        }
+       },
+       "description": "statement.pdf.send"
+      }
+     }
+    ],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": 0,
+         "operator": "greater_than",
+         "variable": "send_pdf_failure_count"
+        }
+       ]
+      },
+      "description": "service error",
+      "target_node": "end_agent"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "sent",
+      "target_node": "end_sent"
+     }
+    ],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": "end_sent",
+    "return_to_previous_on_interrupt": false
+   },
+   "end_agent": {
+    "name": "end_agent",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "terminal": {
+     "type": "function",
+     "function": {
+      "name": "end_agent",
+      "handler": "__function__:end_call",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "message_mode": {
+         "type": "string",
+         "default": "custom"
+        },
+        "spoken_message": {
+         "type": "string",
+         "default": "\u015eu anda i\u015fleminizi ger\u00e7ekle\u015ftiremiyorum, sizi m\u00fc\u015fteri temsilcimize aktar\u0131yorum."
+        }
+       }
+      },
+      "description": ""
+     }
+    },
+    "node_type": "end_call",
+    "assertions": [],
+    "passthrough": false,
+    "pre_actions": [],
+    "transitions": [],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": null,
+    "return_to_previous_on_interrupt": false
+   },
+   "end_tries": {
+    "name": "end_tries",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "terminal": {
+     "type": "function",
+     "function": {
+      "name": "end_tries",
+      "handler": "__function__:end_call",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "message_mode": {
+         "type": "string",
+         "default": "custom"
+        },
+        "spoken_message": {
+         "type": "string",
+         "default": "Size \u015fu anda yard\u0131mc\u0131 olam\u0131yorum. Sizi ana men\u00fcye aktar\u0131yorum."
+        }
+       }
+      },
+      "description": ""
+     }
+    },
+    "node_type": "end_call",
+    "assertions": [],
+    "passthrough": false,
+    "pre_actions": [],
+    "transitions": [],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": null,
+    "return_to_previous_on_interrupt": false
+   },
+   "say_greet": {
+    "name": "say_greet",
+    "tools": [],
+    "on_enter": {
+     "text": "Merhaba, ben Freya Bank sesli asistan\u0131y\u0131m.",
+     "type": "tts"
+    },
+    "node_type": "conversation",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [],
+    "transitions": [
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "always",
+      "target_node": "say_why"
+     }
+    ],
+    "role_message": "",
+    "task_message": "Fixed line already spoken. No tool call.",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": "say_why",
+    "return_to_previous_on_interrupt": false
+   },
+   "after_figs": {
+    "name": "after_figs",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "node_type": "conversation",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": "1",
+         "operator": "equals",
+         "variable": "email_ok"
+        }
+       ]
+      },
+      "description": "email",
+      "target_node": "speak_debt"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "always",
+      "target_node": "ask_more"
+     }
+    ],
+    "role_message": "",
+    "task_message": "routing only",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": "ask_more",
+    "return_to_previous_on_interrupt": false
+   },
+   "build_debt": {
+    "name": "build_debt",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "node_type": "code",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [
+     {
+      "type": "function",
+      "config": {
+       "timeoutMs": 8000,
+       "maxRetries": 0
+      },
+      "function": {
+       "name": "build_debt",
+       "handler": "__function__:code_exec",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "code": {
+          "type": "string",
+          "default": "import json\nimport datetime\n\nMONTHS = ['Ocak', '\u015eubat', 'Mart', 'Nisan', 'May\u0131s', 'Haziran', 'Temmuz', 'A\u011fustos', 'Eyl\u00fcl', 'Ekim', 'Kas\u0131m', 'Aral\u0131k']\nDIG = ['s\u0131f\u0131r', 'bir', 'iki', '\u00fc\u00e7', 'd\u00f6rt', 'be\u015f', 'alt\u0131', 'yedi', 'sekiz', 'dokuz']\nCURS = [('debtUSD', 'Dolar', 'USD'), ('debtEUR', 'Euro', 'EUR'), ('debtGBP', '\u0130ngiliz Sterlini', 'GBP')]\nOLD = {'debtTL': 'debt_tl', 'debtUSD': 'debt_usd', 'debtEUR': 'debt_eur', 'debtGBP': 'debt_gbp'}\nAPO = chr(39)\n\ndef flat(prefix):\n    o = {}\n    for f in ['statementDebt', 'minPayment', 'remainingDebt', 'remainingMinPayment', 'currentPeriodExpense', 'totalDebt', 'transferAmount', 'statementPaymentStatus', 'totalDebtPaymentStatus', 'remainAutomaticPaymentAmount']:\n        try:\n            v = vars.get(prefix + f)\n        except Exception:\n            v = None\n        if v is not None and str(v) != 'null':\n            o[f] = v\n    return o\n\ndef BL(name):\n    b = flat('cards_balance_response.data.data.' + name + '.')\n    if not b:\n        v = vars.get(OLD.get(name, ''))\n        if isinstance(v, str):\n            try:\n                v = json.loads(v)\n            except Exception:\n                v = None\n        if isinstance(v, dict):\n            b = v\n    return b if isinstance(b, dict) else {}\n\ndef T(name, alt):\n    v = vars.get('cards_balance_response.data.data.' + name)\n    if v is None or str(v) in ('', 'null'):\n        v = vars.get(alt)\n    if v is None or str(v) in ('', 'null'):\n        return ''\n    return str(v).strip()\n\ndef fv(b, k):\n    try:\n        return float(b.get(k) or 0)\n    except Exception:\n        return 0.0\n\ndef amt(x):\n    try:\n        x = round(float(x), 2)\n    except Exception:\n        x = 0.0\n    if abs(x - round(x)) < 0.005:\n        s = '{:,}'.format(int(round(x)))\n    else:\n        s = '{:,.2f}'.format(x)\n    return s.replace(',', '#').replace('.', ',').replace('#', '.')\n\ndef pdate(s):\n    try:\n        return datetime.datetime.strptime(str(s).strip(), '%d.%m.%Y').date()\n    except Exception:\n        return None\n\ndef dstr(s):\n    d = pdate(s)\n    if d is None:\n        return ''\n    return str(d.day) + ' ' + MONTHS[d.month - 1] + ' ' + str(d.year)\n\ndef digits(s):\n    return ' '.join(DIG[int(ch)] for ch in str(s) if ch.isdigit())\n\ndef joinn(a):\n    if len(a) == 1:\n        return a[0]\n    if len(a) == 2:\n        return a[0] + ' ve ' + a[1]\n    return ', '.join(a[:-1]) + ' ve ' + a[-1]\n\ndef tl_sentence(b):\n    rd = fv(b, 'remainingDebt')\n    rm = fv(b, 'remainingMinPayment')\n    mp = fv(b, 'minPayment')\n    sd = fv(b, 'statementDebt')\n    if rd <= 0:\n        return None\n    if rm >= mp:\n        return 'T\u00fcrk Liras\u0131 borcunuz ' + amt(sd) + ' TL, \u00f6denmesi gereken minimum tutar ' + amt(mp) + ' TL' + APO + 'dir.'\n    if rm <= 0:\n        return 'T\u00fcrk Liras\u0131 borcunuz ' + amt(sd) + ' TL, kalan toplam borcunuz ' + amt(rd) + ' TL' + APO + 'dir. Minimum \u00f6demenizi yapt\u0131\u011f\u0131n\u0131z i\u00e7in te\u015fekk\u00fcr ederiz.'\n    return 'T\u00fcrk Liras\u0131 borcunuz ' + amt(sd) + ' TL, \u00f6denmesi gereken minimum tutar ' + amt(mp) + ' TL, kalan toplam borcunuz ' + amt(rd) + ' TL, kalan minimum \u00f6deme tutar\u0131n\u0131z ' + amt(rm) + ' TL' + APO + 'dir.'\n\ndef fx_sentence(b, nm, cur):\n    sd = fv(b, 'statementDebt')\n    rd = fv(b, 'remainingDebt')\n    mp = fv(b, 'minPayment')\n    if sd <= 0 and rd <= 0:\n        return None\n    return nm + ' borcunuz ' + amt(sd) + ' ' + cur + ', kalan toplam borcunuz ' + amt(rd) + ' ' + cur + ', \u00f6denmesi gereken minimum tutar ' + amt(mp) + ' ' + cur + APO + 'dir.'\n\ndef main():\n    today = None\n    try:\n        today = datetime.date.fromisoformat(str(vars.get('now') or '')[:10])\n    except Exception:\n        today = None\n    tl = BL('debtTL')\n    name = str(vars.get('chosen_card_name') or '').strip()\n    last4 = digits(vars.get('chosen_last4') or '')\n    stmt = T('statementDate', 'statement_date')\n    lp = T('lastPayDate', 'last_pay_date')\n    nxt = T('nextStatementDate', 'next_statement_date')\n    email = str(vars.get('registered_email') or '').strip()\n    ctype = str(vars.get('comm_type') or '').strip()\n    card = 'Sonu ' + last4 + ' ile biten ' + ((name + ' kart\u0131n\u0131z\u0131n') if name else 'kart\u0131n\u0131z\u0131n')\n    email_ok = '1' if (email != '' and ctype != 'Phone') else '0'\n    offer = ''\n    if email_ok == '1':\n        offer = 'Ekstrenizi ' + email.replace('@', ' at ').replace('.', ' nokta ') + ' adresine g\u00f6ndermemi ister misiniz?'\n    if stmt == '':\n        s = 'Kart\u0131n\u0131z\u0131n hen\u00fcz kesilmi\u015f bir ekstresi olmad\u0131\u011f\u0131 i\u00e7in ekstre borcunuz bulunmamaktad\u0131r. \u0130lk hesap kesim tarihiniz ' + dstr(nxt) + ' olacak.'\n        return s, '', offer, email_ok\n    sents = []\n    nodebt = []\n    if tl:\n        s = tl_sentence(tl)\n        if s:\n            sents.append(s)\n        else:\n            nodebt.append('T\u00fcrk Liras\u0131')\n    for key, nm, cur in CURS:\n        b = BL(key)\n        if not b:\n            continue\n        s = fx_sentence(b, nm, cur)\n        if s:\n            sents.append(s)\n        else:\n            nodebt.append(nm)\n    parts = []\n    if not sents:\n        total = fv(tl, 'totalDebt')\n        s = card + ' ' + dstr(stmt) + ' tarihli ekstresinden borcunuz bulunmamaktad\u0131r. Gelecek d\u00f6nemler dahil toplam borcunuz ' + amt(total) + ' TL' + APO + 'dir.'\n        if lp:\n            s = s + ' Son \u00f6deme tarihiniz ' + dstr(lp) + ' olacakt\u0131r.'\n        parts.append(s)\n    else:\n        if today is not None and pdate(stmt) == today:\n            parts.append('Hesap kesim tarihiniz bug\u00fcn, ekstreniz saat 00.00 itibar\u0131yla kesilecek.')\n        parts.append(card + ' ' + dstr(stmt) + ' tarihli ekstre bilgileri.')\n        parts.extend(sents)\n        if nodebt:\n            parts.append(joinn(nodebt) + ' borcunuz bulunmamaktad\u0131r.')\n        d = pdate(lp)\n        if d is not None:\n            if today is not None and d == today:\n                parts.append('Bor\u00e7lar\u0131n\u0131z i\u00e7in son \u00f6deme tarihiniz bug\u00fcnd\u00fcr.')\n            elif today is not None and d < today:\n                parts.append('Son \u00f6deme tarihiniz ge\u00e7mi\u015f. Toplam borcunuz ' + amt(fv(tl, 'totalDebt')) + ' TL' + APO + 'dir.')\n            else:\n                parts.append('Bor\u00e7lar\u0131n\u0131z i\u00e7in son \u00f6deme tarihiniz ' + dstr(lp) + APO + 'dir.')\n    parts = [p for p in parts if p]\n    if sents:\n        idx = 0\n        for i, p in enumerate(parts):\n            if p.endswith('tarihli ekstre bilgileri.'):\n                idx = i\n        return ' '.join(parts[:idx + 1]), ' '.join(parts[idx + 1:]), offer, email_ok\n    return ' '.join(parts), '', offer, email_ok\n\ntry:\n    card_part, figs_part, offer_part, ok = main()\nexcept Exception:\n    card_part, figs_part, offer_part, ok = '\u015eu anda i\u015fleminizi ger\u00e7ekle\u015ftiremiyorum, sizi m\u00fc\u015fteri temsilcimize aktar\u0131yorum.', '', '', '0'\nvars['debt_card'] = card_part\nvars['debt_figs'] = figs_part\nvars['debt_offer'] = offer_part\nvars['has_figs'] = '1' if figs_part else '0'\nvars['email_ok'] = ok\n"
+         },
+         "timeout_ms": {
+          "type": "number",
+          "default": 8000
+         }
+        }
+       },
+       "description": ""
+      }
+     }
+    ],
+    "transitions": [
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "always",
+      "target_node": "say_greet"
+     }
+    ],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": "say_greet",
+    "return_to_previous_on_interrupt": false
+   },
+   "cards_list": {
+    "name": "cards_list",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "node_type": "api_request",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [
+     {
+      "type": "function",
+      "config": {
+       "timeoutMs": 12000,
+       "maxRetries": 0
+      },
+      "function": {
+       "name": "cards_list",
+       "handler": "__function__:api_call",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "url": {
+          "type": "string",
+          "default": "https://freya-bank-statement-mock.mock-hello.workers.dev/voice/v1/cards.list"
+         },
+         "body": {
+          "type": "object",
+          "properties": {
+           "call": {
+            "type": "object",
+            "properties": {
+             "lang": {
+              "type": "string",
+              "default": "tr"
+             }
+            }
+           },
+           "data": {
+            "type": "object",
+            "properties": {
+             "aiFlow": {
+              "type": "string",
+              "default": "CardOps"
+             },
+             "customerNo": {
+              "type": "string",
+              "default": "{{customerNumber}}"
+             }
+            }
+           }
+          }
+         },
+         "method": {
+          "type": "string",
+          "default": "POST"
+         },
+         "headers": {
+          "type": "object",
+          "properties": {
+           "Content-Type": {
+            "type": "string",
+            "default": "application/json"
+           }
+          }
+         }
+        }
+       },
+       "description": "cards.list"
+      }
+     }
+    ],
+    "transitions": [
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "always",
+      "target_node": "classify_cards"
+     }
+    ],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [
+     {
+      "path": "data.data.cards",
+      "variable": "cards",
+      "description": ""
+     },
+     {
+      "path": "data.data.validCardsCount",
+      "variable": "valid_cards_count",
+      "description": ""
+     }
+    ],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": "classify_cards",
+    "return_to_previous_on_interrupt": false
+   },
+   "match_card": {
+    "name": "match_card",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "node_type": "code",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [
+     {
+      "type": "function",
+      "config": {
+       "timeoutMs": 8000,
+       "maxRetries": 0
+      },
+      "function": {
+       "name": "match_card",
+       "handler": "__function__:code_exec",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "code": {
+          "type": "string",
+          "default": "import json\n\ndef G(k):\n    v = vars.get(k)\n    if isinstance(v, str):\n        try:\n            return json.loads(v)\n        except Exception:\n            return v\n    return v\n\nWORDS = [('s\u0131f\u0131r', '0'), ('bir', '1'), ('iki', '2'), ('\u00fc\u00e7', '3'), ('d\u00f6rt', '4'), ('be\u015f', '5'), ('alt\u0131', '6'), ('yedi', '7'), ('sekiz', '8'), ('dokuz', '9')]\n\nelig = G('elig_cards')\nif not isinstance(elig, list):\n    elig = []\nraw = str(G('card_choice') or '').lower()\nch = raw\nfor w, d in WORDS:\n    ch = ch.replace(w, d)\nch = ch.replace(' ', '')\nfound = []\nfor c in elig:\n    if not isinstance(c, dict):\n        continue\n    nm = str(c.get('productName') or '').strip().lower()\n    l4 = str(c.get('cardNumberLast4') or '')\n    if (nm != '' and nm in raw) or (l4 != '' and l4 in ch):\n        found.append(c)\ntry:\n    tries = int(G('choice_tries') or 0)\nexcept Exception:\n    tries = 0\ntries += 1\nvars['choice_tries'] = str(tries)\nvars['card_choice'] = ''\nif len(found) == 1:\n    c = found[0]\n    vars['match_ok'] = '1'\n    vars['chosen_card_number'] = str(c.get('cardNumber') or '')\n    vars['chosen_card_name'] = str(c.get('productName') or '').strip()\n    vars['chosen_last4'] = str(c.get('cardNumberLast4') or '')\nelse:\n    vars['match_ok'] = '0'\n"
+         },
+         "timeout_ms": {
+          "type": "number",
+          "default": 8000
+         }
+        }
+       },
+       "description": ""
+      }
+     }
+    ],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": "1",
+         "operator": "equals",
+         "variable": "match_ok"
+        }
+       ]
+      },
+      "description": "matched",
+      "target_node": "cards_balance"
+     },
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": 2,
+         "operator": "greater_than",
+         "variable": "choice_tries"
+        }
+       ]
+      },
+      "description": "too many tries",
+      "target_node": "end_tries"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "not matched, ask again",
+      "target_node": "ask_card"
+     }
+    ],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": "ask_card",
+    "return_to_previous_on_interrupt": false
+   },
+   "speak_debt": {
+    "name": "speak_debt",
+    "tools": [],
+    "on_enter": {
+     "text": "{{debt_offer}}",
+     "type": "tts"
+    },
+    "node_type": "conversation",
+    "assertions": [],
+    "passthrough": false,
+    "pre_actions": [],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "logic": "and",
+         "conditions": [
+          {
+           "mode": "exact",
+           "operand": "yes",
+           "operator": "equals",
+           "variable": "email_answer"
+          },
+          {
+           "mode": "exact",
+           "operand": "1",
+           "operator": "equals",
+           "variable": "email_ok"
+          }
+         ]
+        }
+       ]
+      },
+      "description": "clear yes and address on file",
+      "target_node": "send_pdf"
+     },
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": "no",
+         "operator": "equals",
+         "variable": "email_answer"
+        }
+       ]
+      },
+      "description": "declined",
+      "target_node": "ask_more"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "done",
+      "target_node": "end_menu"
+     }
+    ],
+    "role_message": "",
+    "task_message": "The debt and the e-mail offer were spoken in the previous message. Extract email_answer: yes only if the caller clearly agrees to receive the statement by e-mail, no if they clearly decline, otherwise leave it empty. If the caller has not answered the e-mail offer yet, ask once more clearly. Do not repeat the debt. Do not call tools.",
+    "interruptible": true,
+    "max_node_turns": 2,
+    "response_mapping": [],
+    "extraction_schema": [
+     {
+      "name": "email_answer",
+      "type": "string",
+      "description": "Answer to the offer to e-mail the statement",
+      "enum_values": [
+       "yes",
+       "no"
+      ],
+      "min_confidence": 0.6
+     }
+    ],
+    "max_turn_transition": "end_menu",
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": true,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": null,
+    "return_to_previous_on_interrupt": false
+   },
+   "end_no_card": {
+    "name": "end_no_card",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "terminal": {
+     "type": "function",
+     "function": {
+      "name": "end_no_card",
+      "handler": "__function__:end_call",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "message_mode": {
+         "type": "string",
+         "default": "custom"
+        },
+        "spoken_message": {
+         "type": "string",
+         "default": "Ekstre borcunu sorgulayabilece\u011finiz uygun bir kredi kart\u0131n\u0131z bulunmuyor. Sizi ana men\u00fcye aktar\u0131yorum."
+        }
+       }
+      },
+      "description": ""
+     }
+    },
+    "node_type": "end_call",
+    "assertions": [],
+    "passthrough": false,
+    "pre_actions": [],
+    "transitions": [],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": null,
+    "return_to_previous_on_interrupt": false
+   },
+   "cards_balance": {
+    "name": "cards_balance",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "node_type": "api_request",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [
+     {
+      "type": "function",
+      "config": {
+       "timeoutMs": 12000,
+       "maxRetries": 0
+      },
+      "function": {
+       "name": "cards_balance",
+       "handler": "__function__:api_call",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "url": {
+          "type": "string",
+          "default": "https://freya-bank-statement-mock.mock-hello.workers.dev/voice/v1/cards.balance"
+         },
+         "body": {
+          "type": "object",
+          "properties": {
+           "call": {
+            "type": "object",
+            "properties": {
+             "lang": {
+              "type": "string",
+              "default": "tr"
+             }
+            }
+           },
+           "data": {
+            "type": "object",
+            "properties": {
+             "cardNumber": {
+              "type": "string",
+              "default": "{{chosen_card_number}}"
+             }
+            }
+           }
+          }
+         },
+         "method": {
+          "type": "string",
+          "default": "POST"
+         },
+         "headers": {
+          "type": "object",
+          "properties": {
+           "Content-Type": {
+            "type": "string",
+            "default": "application/json"
+           }
+          }
+         }
+        }
+       },
+       "description": "cards.balance"
+      }
+     }
+    ],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": 0,
+         "operator": "greater_than",
+         "variable": "cards_balance_failure_count"
+        }
+       ]
+      },
+      "description": "service error",
+      "target_node": "end_agent"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "ok",
+      "target_node": "contact_email_get"
+     }
+    ],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [
+     {
+      "path": "data.data.debtTL",
+      "variable": "debt_tl",
+      "description": ""
+     },
+     {
+      "path": "data.data.debtUSD",
+      "variable": "debt_usd",
+      "description": ""
+     },
+     {
+      "path": "data.data.debtEUR",
+      "variable": "debt_eur",
+      "description": ""
+     },
+     {
+      "path": "data.data.debtGBP",
+      "variable": "debt_gbp",
+      "description": ""
+     },
+     {
+      "path": "data.data.statementDate",
+      "variable": "statement_date",
+      "description": ""
+     },
+     {
+      "path": "data.data.lastPayDate",
+      "variable": "last_pay_date",
+      "description": ""
+     },
+     {
+      "path": "data.data.nextStatementDate",
+      "variable": "next_statement_date",
+      "description": ""
+     }
+    ],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": "contact_email_get",
+    "return_to_previous_on_interrupt": false
+   },
+   "classify_cards": {
+    "name": "classify_cards",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "node_type": "code",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [
+     {
+      "type": "function",
+      "config": {
+       "timeoutMs": 8000,
+       "maxRetries": 0
+      },
+      "function": {
+       "name": "classify_cards",
+       "handler": "__function__:code_exec",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "code": {
+          "type": "string",
+          "default": "import json\n\ndef G(k):\n    v = vars.get(k)\n    if isinstance(v, str):\n        try:\n            return json.loads(v)\n        except Exception:\n            return v\n    return v\n\ndef digits_words(s):\n    names = ['s\u0131f\u0131r', 'bir', 'iki', '\u00fc\u00e7', 'd\u00f6rt', 'be\u015f', 'alt\u0131', 'yedi', 'sekiz', 'dokuz']\n    return ' '.join(names[int(ch)] for ch in str(s) if ch.isdigit())\n\ncards = G('cards')\nif not isinstance(cards, list):\n    cards = []\n    _i = 0\n    while _i < 20:\n        _p = 'cards_list_response.data.data.cards.' + str(_i) + '.'\n        if vars.get(_p + 'cardNumber') is None:\n            break\n        cards.append(dict(cardNumber=str(vars.get(_p + 'cardNumber') or ''), cardNumberLast4=str(vars.get(_p + 'cardNumberLast4') or ''), productName=str(vars.get(_p + 'productName') or ''), status=str(vars.get(_p + 'status') or ''), isMainCard=str(vars.get(_p + 'isMainCard') or '')))\n        _i += 1\n    if len(cards) == 0:\n        cards = None\nresp = G('cards_list_response')\nst = ''\ntry:\n    st = str(resp.get('status_code') or '')\nexcept Exception:\n    st = ''\nif st == '':\n    st = str(vars.get('cards_list_status_code') or '')\nelig = []\nif isinstance(cards, list):\n    for c in cards:\n        if isinstance(c, dict) and str(c.get('status')) == 'A' and str(c.get('isMainCard')).lower() == 'true':\n            elig.append(c)\nif st == '404' or 'bulunamad' in str(resp):\n    state = 'none'\nelif not isinstance(cards, list):\n    state = 'error'\nelif len(elig) == 0:\n    state = 'none'\nelif len(elig) == 1:\n    state = 'one'\nelse:\n    state = 'multi'\nvars['card_state'] = state\nvars['card_choice'] = ''\nvars['choice_tries'] = '0'\nvars['elig_cards'] = json.dumps(elig, ensure_ascii=False)\nvars['card_question'] = ''\nif state == 'one':\n    c = elig[0]\n    vars['chosen_card_number'] = str(c.get('cardNumber') or '')\n    vars['chosen_card_name'] = str(c.get('productName') or '').strip()\n    vars['chosen_last4'] = str(c.get('cardNumberLast4') or '')\nelif state == 'multi':\n    opts = []\n    for c in elig[:2]:\n        nm = str(c.get('productName') or '').strip()\n        if nm == '':\n            nm = 'sonu ' + digits_words(c.get('cardNumberLast4') or '') + ' ile biten kart'\n        opts.append(nm)\n    vars['card_question'] = 'Hangi kart\u0131n\u0131z\u0131n borcunu \u00f6\u011frenmek istersiniz? \u00d6rne\u011fin, ' + opts[0] + ' veya ' + opts[1] + ' diyebilirsiniz.'\n"
+         },
+         "timeout_ms": {
+          "type": "number",
+          "default": 8000
+         }
+        }
+       },
+       "description": ""
+      }
+     }
+    ],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": "one",
+         "operator": "equals",
+         "variable": "card_state"
+        }
+       ]
+      },
+      "description": "one eligible card",
+      "target_node": "cards_balance"
+     },
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": "multi",
+         "operator": "equals",
+         "variable": "card_state"
+        }
+       ]
+      },
+      "description": "several cards",
+      "target_node": "ask_card"
+     },
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": "none",
+         "operator": "equals",
+         "variable": "card_state"
+        }
+       ]
+      },
+      "description": "no eligible card",
+      "target_node": "end_no_card"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "service error",
+      "target_node": "end_agent"
+     }
+    ],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": false,
+    "passthrough_default_transition": "end_agent",
+    "return_to_previous_on_interrupt": false
+   },
+   "contact_email_get": {
+    "name": "contact_email_get",
+    "tools": [],
+    "on_enter": {
+     "type": "silent"
+    },
+    "node_type": "api_request",
+    "assertions": [],
+    "passthrough": true,
+    "pre_actions": [
+     {
+      "type": "function",
+      "config": {
+       "timeoutMs": 12000,
+       "maxRetries": 0
+      },
+      "function": {
+       "name": "contact_email_get",
+       "handler": "__function__:api_call",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "url": {
+          "type": "string",
+          "default": "https://freya-bank-statement-mock.mock-hello.workers.dev/voice/v1/contact.email.get"
+         },
+         "body": {
+          "type": "object",
+          "properties": {
+           "call": {
+            "type": "object",
+            "properties": {
+             "lang": {
+              "type": "string",
+              "default": "tr"
+             }
+            }
+           },
+           "data": {
+            "type": "object",
+            "properties": {
+             "customerNo": {
+              "type": "string",
+              "default": "{{customerNumber}}"
+             },
+             "intAddressInfoType": {
+              "type": "string",
+              "default": "E"
+             }
+            }
+           }
+          }
+         },
+         "method": {
+          "type": "string",
+          "default": "POST"
+         },
+         "headers": {
+          "type": "object",
+          "properties": {
+           "Content-Type": {
+            "type": "string",
+            "default": "application/json"
+           }
+          }
+         }
+        }
+       },
+       "description": "contact.email.get"
+      }
+     }
+    ],
+    "transitions": [
+     {
+      "condition": {
+       "logic": "or",
+       "conditions": [
+        {
+         "mode": "exact",
+         "operand": 0,
+         "operator": "greater_than",
+         "variable": "contact_email_get_failure_count"
+        }
+       ]
+      },
+      "description": "service error",
+      "target_node": "end_agent"
+     },
+     {
+      "condition": {
+       "mode": "exact",
+       "operator": "always"
+      },
+      "description": "ok",
+      "target_node": "build_debt"
+     }
+    ],
+    "role_message": "",
+    "task_message": "",
+    "interruptible": true,
+    "max_node_turns": null,
+    "response_mapping": [
+     {
+      "path": "data.data.ibanEmail",
+      "variable": "registered_email",
+      "description": ""
+     },
+     {
+      "path": "data.data.communicationType",
+      "variable": "comm_type",
+      "description": ""
+     }
+    ],
+    "extraction_schema": [],
+    "max_turn_transition": null,
+    "truncation_strategy": "keep_all",
+    "suppress_tool_results": false,
+    "truncation_window_size": 10,
+    "on_enter_first_entry_only": false,
+    "disable_inactivity_monitor": true,
+    "passthrough_default_transition": "build_debt",
+    "return_to_previous_on_interrupt": false
+   }
+  },
+  "tools": [],
+  "agent_config": {
+   "llmConfig": {
+    "model": "experimental-5",
+    "tools": [
+     {
+      "type": "function",
+      "function": {
+       "name": "end_call",
+       "handler": "__function__:end_call",
+       "parameters": {
+        "type": "object",
+        "properties": {}
+       },
+       "description": "This is used to technically terminate the call after all the customer's questions have been answered and necessary information has been provided.\n- It should only be triggered SILENTLY in the background after the customer-related workflow is complete; never mention this tool or its name to the customer."
+      }
+     }
+    ],
+    "apiKey": null,
+    "baseUrl": null,
+    "provider": "experimental-5",
+    "maxTokens": 1000,
+    "clientType": null,
+    "temperature": 0.7,
+    "firstMessage": "Selam! Sana nas\u0131l yard\u0131mc\u0131 olabilirim?",
+    "systemPrompt": "You are a helpful assistant. Your role is to help users with their tasks. Always be friendly and professional. You can use `end_call` tool after you say goodbye to customer to hang up if call about to finish.",
+    "firstMessageMode": "assistant-speaks-first",
+    "additionalSettings": {},
+    "disableInterruptionsDuringFirstMessage": true
+   },
+   "sttConfig": {
+    "model": "freya-stt",
+    "apiKey": null,
+    "baseUrl": null,
+    "language": "tr",
+    "provider": "Freya",
+    "confidenceReask": {
+     "enabled": false,
+     "reaskMode": "phrase",
+     "reduction": "min",
+     "threshold": 0.3,
+     "reaskPhrases": null,
+     "disableOnDigitNodes": true,
+     "maxConsecutiveReasks": 2
+    },
+    "additionalSettings": {
+     "diarize": false,
+     "punctuate": true,
+     "streaming": true,
+     "aicEnabled": false,
+     "krispEnabled": false,
+     "smartTurnEnabled": true
+    }
+   },
+   "ttsConfig": {
+    "model": "freya-tts",
+    "apiKey": null,
+    "baseUrl": null,
+    "voiceId": "leyla",
+    "language": "tr",
+    "provider": "Freya",
+    "stopSpeakingPlan": {
+     "voiceSeconds": 0.1,
+     "numberOfWords": 2,
+     "backOffSeconds": 0.4,
+     "interruptionPhrases": [
+      "dur",
+      "bekle",
+      "bir dakika",
+      "bir saniye",
+      "dursana",
+      "bekle bi",
+      "anlamad\u0131m",
+      "ne diyon",
+      "ne diyorsun",
+      "ne dedin",
+      "yeter"
+     ],
+     "acknowledgementPhrases": [
+      "h\u0131",
+      "evet",
+      "tamam",
+      "aynen",
+      "okey",
+      "okay",
+      "anlad\u0131m",
+      "hee",
+      "ee",
+      "eee",
+      "\u0131\u0131",
+      "\u0131\u0131\u0131",
+      "ha",
+      "h\u0131-h\u0131",
+      "ha-ha",
+      "tabi",
+      "tabii",
+      "peki",
+      "tamamd\u0131r",
+      "h\u0131 h\u0131",
+      "h\u0131m",
+      "h\u0131mm",
+      "h\u0131h\u0131",
+      "haha",
+      "he",
+      "hahaha"
+     ]
+    },
+    "startSpeakingPlan": {
+     "waitSeconds": 0.5,
+     "backgroundNoisePhrases": [
+      "arka plan sesi",
+      "klavye sesi",
+      "klavye sesleri",
+      "\u00f6ks\u00fcr\u00fck",
+      "\u00f6ks\u00fcr\u00fck sesi",
+      "video sesi",
+      "video kayd\u0131",
+      "\u00e7\u0131lg\u0131n ses",
+      "\u00e7\u0131lg\u0131n kahkaha",
+      "g\u00fcl\u00fc\u015f",
+      "ses ses ses",
+      "\u00e7\u0131k \u00e7\u0131k \u00e7\u0131k",
+      "sim",
+      "sim izle"
+     ]
+    },
+    "textSubstitutions": [
+     {
+      "pattern": "@",
+      "replacement": "at"
+     },
+     {
+      "pattern": "\\$",
+      "replacement": "dollars"
+     },
+     {
+      "pattern": "%",
+      "replacement": "percent"
+     },
+     {
+      "pattern": "&",
+      "replacement": "and"
+     },
+     {
+      "pattern": "\\+",
+      "replacement": "plus"
+     },
+     {
+      "pattern": "turkishairlines",
+      "replacement": "turkish airlines",
+      "caseInsensitive": true
+     }
+    ],
+    "additionalSettings": {
+     "speed": 1,
+     "stability": 0.5,
+     "similarity_boost": 0.75
+    },
+    "speechNormalization": {
+     "urls": true,
+     "names": false,
+     "emails": true,
+     "emojis": true,
+     "phoneNumbers": false,
+     "generalNumbers": false,
+     "identityNumbers": false
+    }
+   },
+   "dtmfConfig": {
+    "prefix": "DTMF: ",
+    "enabled": false,
+    "timeout": 2,
+    "terminationDigit": "#"
+   },
+   "syncSource": null,
+   "privacyConfig": {
+    "enableRecording": true,
+    "getRecordingConsent": false,
+    "recordingConsentText": null
+   },
+   "complianceConfig": {
+    "soc2": false,
+    "pciDss": false,
+    "euAiAct": false,
+    "mifidIi": false
+   },
+   "routingLlmConfig": null,
+   "backgroundSoundUrl": null,
+   "piiRedactionConfig": {
+    "enabled": false,
+    "maskIban": true,
+    "maskEmail": true,
+    "maskPhone": true,
+    "customRules": [],
+    "maskNationalId": true,
+    "maskPaymentCard": true
+   },
+   "voicemailDetection": {
+    "enabled": false,
+    "messageMode": "none",
+    "staticMessage": null,
+    "voicemailResponseDelay": 2
+   },
+   "callTimeoutSettings": {
+    "maxRetries": 2,
+    "dynamicWait": null,
+    "checkInMessage": null,
+    "closureMessage": null,
+    "silenceTimeout": 10,
+    "maximumDuration": 600,
+    "maxDurationEndCall": {
+     "llmPrompt": null,
+     "messageMode": "llm",
+     "interruptible": false,
+     "spokenMessage": null,
+     "triggerTimeout": null
+    },
+    "silenceTimeoutPrompt": null
+   },
+   "extractionLlmConfig": null,
+   "postConversationAnalysis": {
+    "analysisModel": null,
+    "summaryPrompt": null,
+    "autoDetectProblems": false,
+    "problemDetectionPrompt": null,
+    "problemDetectionInstructions": null
+   }
+  },
+  "global_nodes": {},
+  "initial_node": "cards_list",
+  "system_prompt": "Sen Freya Bank'in telefon asistanisin. Turkce konus. Kisa, net cumleler kur. Sana verilen sabit cumleleri aynen soyle. Kart numarasinin tamamini asla soyleme, yalnizca son dort hanesini tek tek oku. Baska kisi adina islem yapma. Odeme, itiraz ve temsilci taleplerinde sadece aktarim yap.",
+  "test_variables": {
+   "now": "2026-10-12T10:30:00+03:00",
+   "customerNumber": "95004361"
+  }
+ }
+}

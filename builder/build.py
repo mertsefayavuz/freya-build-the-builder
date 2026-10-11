@@ -14,6 +14,19 @@ import freya
 from builder import compile as compiler, extract, spec_schema, tools_gen, trace
 
 
+def expand_inputs(paths):
+    """A folder stands for the files in it (recursively, sorted); an http(s) URL is the mock service base (returned apart)."""
+    files, mock_url = [], None
+    for p in paths:
+        if p.startswith(("http://", "https://")):
+            mock_url = p.rstrip("/")
+        elif pathlib.Path(p).is_dir():
+            files += sorted(str(f) for f in pathlib.Path(p).rglob("*") if f.is_file() and not f.name.startswith("."))
+        else:
+            files.append(p)
+    return files, mock_url
+
+
 def read_inputs(paths):
     docs, api = [], None
     for p in paths:
@@ -78,6 +91,7 @@ def main():
     ap.add_argument("--no-smoke", action="store_true")
     ap.add_argument("--no-deploy", action="store_true", help="stop after compiling (offline check)")
     a = ap.parse_args()
+    a.inputs, mock_url = expand_inputs(a.inputs)
     docs, api = read_inputs(a.inputs)
     slot = a.slot or pathlib.Path([p for p in a.inputs if not p.endswith(".json")][-1] if docs else a.inputs[0]).stem
     out = ROOT / "out"

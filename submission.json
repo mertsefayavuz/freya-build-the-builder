@@ -1,0 +1,15 @@
+{
+  "team": "mert_sefa_yavuz",
+  "members": [
+    {
+      "name": "Mert Sefa Yavuz",
+      "email": "mertsefayavuz@gmail.com"
+    }
+  ],
+  "repo": "https://github.com/mertsefayavuz/freya-build-the-builder",
+  "commit": "SON_COMMIT_HASH",
+  "run_command": "python builder/agent_loop.py {case_folder} {mock_url} 2>&1 | tee traces/final.log",
+  "workflow": "submission/final.workflow.json",
+  "trace": "traces/final.log",
+  "mock_url": "https://freya-bank-statement-mock.mock-hello.workers.dev"
+}

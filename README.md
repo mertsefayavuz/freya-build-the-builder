@@ -119,3 +119,18 @@ So build something that reads a brief, not something that knows this one. Whatev
 - The bank answers `unknown product_id`: the model made an id up. Product ids come from `get_account` (`p1`, `p2`, ...). Give them to the model in the tool result, or fill them in with code.
 - A simulation stays at "running" and no call ever starts: the workflow cannot start a call. Try one chat turn. Leave `agent_config` out of the workflow you send.
 - The agent says nothing after a tool call and the customer hangs up: see "Tool results and the next turn" in `docs/tools-and-code.md`.
+
+## Final case builder (case folder + mock URL)
+
+The final case is a folder of bank documents plus the address of our own mock of the bank's services (Cloudflare Worker).
+
+```bash
+source env.sh      # FREYA_API_KEY, OPENROUTER_API_KEY
+python builder/agent_loop.py <case_folder> <mock_url> 2>&1 | tee traces/final.log
+```
+
+- `builder/agent_loop.py` is an agent loop on any chat-completions model (default: OpenRouter, `BUILDER_MODEL`, comma list tried in order; fallback: a local LM Studio model). The model reads the documents, writes the rulebook (`out/<slot>.rulebook.md`) and the workflow as node files (`out/<slot>/`), and the builder's own code assembles, validates, publishes and exports it (`finalize`), then the model tests it with Freya simulations and fixes what fails.
+- The builder knowledge is generic: `.claude/skills/build-phone-agent-from-case/SKILL.md`. Nothing of one case is in the code or the skill.
+- `--reuse-rulebook` and `--resume` continue from the files of an earlier run (used when a run was cut off); a fresh run needs neither.
+- `mock/` holds the mock Worker: `python mock/build_worker.py <test-customers.json>` writes `mock/worker.js` from the bank's test data; `npx wrangler deploy` in `mock/` publishes it.
+- The older `builder/build.py` is the compiler for the practice briefs (collections); it is not used for the final case.
